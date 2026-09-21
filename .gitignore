@@ -25,3 +25,4 @@ Thumbs.db
 /coverage/
 /cache/
 /tmp/
+/.phpunit.cache/

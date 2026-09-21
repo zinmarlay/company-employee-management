@@ -593,12 +593,12 @@ Authentication, authorization, CSRF, session cookie policy, database security, a
 
 Phase 02 must define and test at least these outcomes:
 
-| Situation | Status | Response behavior |
-| --- | ---: | --- |
-| Registered setup route with supported method | 200 | Server-rendered HTML with an explicit content type |
-| Unknown path | 404 | Safe not-found response |
-| Known path with unsupported method | 405 | Safe response with an `Allow` header |
-| Unexpected exception during processing | 500 | Safe server-error response; diagnostics only in development |
+| Situation                                    | Status | Response behavior                                           |
+| -------------------------------------------- | -----: | ----------------------------------------------------------- |
+| Registered setup route with supported method |    200 | Server-rendered HTML with an explicit content type          |
+| Unknown path                                 |    404 | Safe not-found response                                     |
+| Known path with unsupported method           |    405 | Safe response with an `Allow` header                        |
+| Unexpected exception during processing       |    500 | Safe server-error response; diagnostics only in development |
 
 The primary application response is server-rendered HTML. JSON APIs, redirects, content negotiation, and streaming are deferred unless a later requirement explicitly introduces them.
 
@@ -677,4 +677,3 @@ The phase is not complete merely because a page appears in a browser; the bounda
 7. Do not introduce a full framework, ORM, service container, or unnecessary PSR package.
 8. Do not create empty future architecture directories or speculative abstractions.
 9. Do not modify the master or Phase 01 specification as part of implementing Phase 02 unless a separately reviewed architectural correction is required.
-

@@ -6,6 +6,12 @@ Internal, server-side rendered employee management system for a company with bra
 
 Phase 01 establishes the project bootstrap, Composer metadata, PSR-4 autoloading, central configuration boundary, and public web root. It intentionally does not implement application features.
 
+## Phase 02 status
+
+Phase 02 establishes the Pure PHP HTTP and server-rendered presentation foundation. The request flow now has explicit Request, Router, Middleware Pipeline, Controller, ViewRenderer, Response, ResponseEmitter, and HTTP error boundaries.
+
+The only application route is the setup route at `GET /`. Business routes and features remain deferred.
+
 ## Requirements
 
 - PHP >= 8.3
@@ -29,9 +35,12 @@ From the project root:
 composer validate
 composer install
 composer dump-autoload
+composer test
 ```
 
 Composer installs the minimal project dependencies and generates the PSR-4 autoloader. The project namespace `App\\` maps to `src/`.
+
+PHPUnit is a development dependency used to verify the HTTP architecture. Tests focus on request/response behavior, routing, middleware, view escaping, error handling, and the complete setup request flow.
 
 ## Configuration
 
@@ -60,6 +69,8 @@ The built-in server is for local development only. The `public/` directory is th
 
 The Phase 01 temporary entry point can be opened at <http://localhost:8000/>. Stop the server with `Ctrl+C` after verification.
 
+Phase 02 verification should also confirm that an unknown path returns `404`, a known path with an unsupported method returns `405` with an `Allow` header, and unexpected request-processing failures return a safe `500` response.
+
 ## Phase 01 intentionally does not implement
 
 The following are deferred to later branches:
@@ -72,3 +83,5 @@ The following are deferred to later branches:
 - Branch, department, employee, dispatch-company, contract, portfolio, skill, project, certification, user, search, pagination, and dashboard features
 
 Future phases must preserve the front-controller and configuration boundaries established here and must introduce directories only when they have a real responsibility.
+
+Phase 02 does not implement MySQL, PDO, repositories, authentication, authorization, sessions, CSRF, business services, employee features, dashboard data, file uploads, a complete Material Design interface, API endpoints, or SPA architecture.

@@ -522,3 +522,189 @@ Report only:
 Do not implement Phase 02.
 Do not modify application code.
 Do not perform Git operations.
+
+# Implementation Prompt
+
+You are implementing Phase 02 of the Company Employee Management System.
+
+This is an IMPLEMENTATION task.
+
+Before changing any code, read these files completely:
+
+- docs/specs/00-project-overview.md
+- docs/specs/01-project-setup.md
+- docs/specs/02-core-architecture.md
+- README.md
+- composer.json
+
+Inspect the existing Phase 01 implementation, especially:
+
+- public/index.php
+- src/Bootstrap/ApplicationBootstrap.php
+- src/Bootstrap/Configuration.php
+- config/app.php
+
+The Phase 02 specification is authoritative for this implementation. Do not silently change its architecture or expand its scope.
+
+## Git boundary
+
+Implement on `feature/core-architecture`. Do not create another branch, switch branches, merge, rebase, commit, push, delete branches, or reset existing work. Leave implementation changes uncommitted for manual review.
+
+## Goal
+
+Implement only the HTTP and server-rendered presentation foundation defined by docs/specs/02-core-architecture.md. The request lifecycle must remain understandable:
+
+```text
+Browser → public/index.php → ApplicationBootstrap → Request → HttpKernel
+→ Router → Middleware Pipeline → Controller → ViewRenderer → Response
+→ ResponseEmitter → Browser
+```
+
+Maintain PHP >= 8.3, strict typing, Composer, PSR-4 (`App\\` → `src/`), server-rendered PHP, and `public/` as the document root. Do not introduce Laravel, Symfony, CodeIgniter, an ORM, a service container, React, Vue, or another application framework.
+
+## Implementation requirements
+
+Implement:
+
+- Request creation from globals at one HTTP boundary, with method/path normalization, query/form access, case-insensitive headers, test-friendly construction, and immutable route parameters.
+- A typed Response value object for body, status, and headers, including status validation and CR/LF header-value rejection.
+- One SAPI-facing ResponseEmitter. Controllers and middleware must not emit headers or body output directly.
+- A small custom Router supporting registration, methods, exact paths, simple named single-segment parameters, deterministic matching, duplicate detection, and 404/405 distinction with `Allow`.
+- A minimal setup controller only; no abstract base controller or business logic.
+- A typed Middleware contract and pipeline supporting order, delegation, short-circuiting, and before/after behavior.
+- A centralized HTTP exception boundary for 404, 405, and safe 500 responses. Development diagnostics must be bounded; production responses must not expose traces, paths, secrets, SQL, or configuration.
+- Trusted PHP view rendering with path-traversal protection, output-buffer cleanup, HTML escaping using `htmlspecialchars(..., ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`, and a minimal shared layout.
+- Explicit ApplicationBootstrap composition and a thin public/index.php.
+- Only a minimal setup route such as `GET /`.
+
+Add PHPUnit as a Composer development dependency only when needed for the required tests, using a version compatible with PHP >= 8.3. Update composer.lock through Composer; do not fabricate it.
+
+## Scope prohibition
+
+Do not implement MySQL, PDO, active database configuration, migrations, seeders, repositories, transactions, authentication, login/logout, authenticated sessions, users, roles, authorization, policies, CSRF, business CRUD, employee search/filter/sort/pagination, dashboard data, uploads, complete Material Design UI, APIs, JSON architecture, or SPA architecture. Database infrastructure belongs to Phase 03.
+
+Use strict typing, explicit visibility, meaningful types, constructor injection, focused classes, small methods, clear names, and explicit dependencies. Avoid giant classes, static global state, hidden dependencies, premature generic abstractions, unnecessary interfaces or inheritance, and framework imitation. Every new class must have a concrete Phase 02 responsibility.
+
+## Documentation and verification
+
+Update README.md only for real Phase 02 architecture, test, and verification changes. Preserve unrelated documentation.
+
+Verify:
+
+1. Composer validation and autoloading.
+2. The full PHPUnit suite.
+3. PHP syntax for the implementation.
+4. A local server using `php -S localhost:8000 -t public`.
+5. The successful setup route.
+6. An unknown route returning 404.
+7. An unsupported method returning 405 with `Allow`.
+8. Safe production 500 behavior through tests or controlled harnesses, not an unsafe public debug route.
+9. The server is stopped after verification.
+10. Git-visible changes are inspected without committing.
+
+Do not consider the phase complete merely because `/` renders successfully. Report files created and modified, Composer changes, architecture implemented, tests and results, manual HTTP results, deviations, and intentionally deferred work. Then stop for manual review.
+
+# Implementation Prompt
+
+section.
+
+Preserve the existing Spec Creation Prompt in that file.
+
+Do not replace or delete the earlier prompt history.
+
+17. Scope prohibition
+
+Do NOT implement any of the following in this phase:
+
+- MySQL connection
+- PDO connection factory
+- active database configuration
+- migrations
+- seeders
+- repositories
+- transactions
+- authentication
+- login/logout
+- authenticated sessions
+- users/roles
+- authorization
+- policies
+- CSRF
+- Branch CRUD
+- Department CRUD
+- Employee CRUD
+- Dispatch Company CRUD
+- Contracts
+- Portfolio
+- Employee search/filter/sort/pagination
+- dashboard business data
+- file uploads
+- complete Material Design UI
+- API endpoints
+- JSON API architecture
+- SPA architecture
+
+Database infrastructure belongs to Phase 03.
+
+18. Quality rules
+
+Use:
+
+- strict typing
+- explicit visibility
+- meaningful type declarations
+- constructor injection where appropriate
+- focused classes
+- small methods
+- clear names
+- explicit dependencies
+- safe failure behavior
+
+Avoid:
+
+- giant classes
+- static global state
+- hidden dependencies
+- premature generic abstractions
+- unnecessary interfaces
+- unnecessary inheritance
+- framework imitation
+- comments that merely repeat the code
+
+Every new class must have a concrete Phase 02 responsibility.
+
+19. Verification
+
+After implementation:
+
+1. Run Composer validation.
+2. Regenerate/verify Composer autoloading if needed.
+3. Run the full PHPUnit suite.
+4. Perform appropriate PHP syntax checks.
+5. Start the built-in PHP server using public/ as document root.
+6. Verify the successful setup route.
+7. Verify an unknown route returns 404.
+8. Verify a supported path with an unsupported method returns 405 with Allow.
+9. Verify production-safe 500 behavior using a controlled test path or test harness rather than adding an unsafe public debug endpoint.
+10. Stop the local server.
+11. Inspect Git-visible changes.
+
+Do not consider the phase complete merely because / renders successfully.
+
+20. Final report
+
+When finished, do not commit or push.
+
+Report:
+
+- files created
+- files modified
+- Composer dependency changes
+- architecture implemented
+- tests added
+- test results
+- manual HTTP verification results
+- any deviations from the specification and why
+- anything intentionally deferred
+
+Then stop and wait for manual review.
