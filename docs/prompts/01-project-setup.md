@@ -479,3 +479,416 @@ When finished, report:
 5. Any decisions that need human review before implementation
 
 Then stop.
+
+# Implementation Prompt
+
+You are implementing Phase 01 of the Company Employee Management System.
+
+Before making any changes, read these specifications completely:
+
+- docs/specs/00-project-overview.md
+- docs/specs/01-project-setup.md
+
+The current Git branch must be:
+
+feature/project-setup
+
+This task implements ONLY Phase 01: Project Setup.
+
+Do not implement future phases.
+
+1. First inspect the repository
+
+Before editing files:
+
+1. Inspect the current project tree.
+2. Inspect the existing README.md.
+3. Inspect the current Git-visible project files.
+4. Confirm that the implementation can be completed without modifying the master specification.
+5. Preserve all existing documentation.
+
+Do not delete or rewrite existing project documentation unnecessarily.
+
+2. PHP baseline
+
+The minimum supported PHP version is:
+
+PHP >= 8.3
+
+Use modern PHP deliberately.
+
+Where appropriate, use:
+
+declare(strict_types=1);
+
+Do not introduce language features merely to demonstrate them.
+
+Document the locally expected PHP version and how developers can verify it:
+
+php -v
+
+3. Composer
+
+Create a minimal professional composer.json.
+
+Requirements:
+
+- PHP >= 8.3
+- PSR-4 autoloading
+- Namespace:
+
+App\
+
+mapped to:
+
+src/
+
+Do not install:
+
+- Laravel
+- Symfony
+- CodeIgniter
+- ORM libraries
+- database abstraction libraries
+- frontend frameworks
+
+Keep dependencies minimal.
+
+Do not add packages without a clear Phase 01 responsibility.
+
+If no production dependency is needed, keep the dependency list minimal.
+
+Do not add a dotenv package unless the specification genuinely requires it and you can justify why it is needed during Phase 01.
+
+4. PSR-4 verification
+
+Create the smallest meaningful namespaced application class needed to prove PSR-4 autoloading works.
+
+Do not create fake:
+
+- Controllers
+- Services
+- Repositories
+- Models
+- DTOs
+- Middleware
+
+just to populate directories.
+
+The verification class should have a clear setup/bootstrap responsibility.
+
+Composer autoloading must allow application classes to load without manually requiring individual class files.
+
+5. Minimal physical structure
+
+Create only directories that contain a real Phase 01 file or responsibility.
+
+The implementation may include:
+
+public/
+src/
+config/
+docs/
+
+Create:
+
+storage/logs/
+
+only if Phase 01 actually writes logs.
+
+Create:
+
+tests/
+
+only if an actual Phase 01 test is added.
+
+Do NOT create empty future architecture directories such as:
+
+src/Application/
+src/Domain/
+src/Http/
+src/Infrastructure/
+src/Controllers/
+src/Services/
+src/Repositories/
+src/Middleware/
+resources/views/
+database/migrations/
+database/seeders/
+
+Those belong to later phases when they have a real responsibility.
+
+6. Public web root
+
+Create:
+
+public/index.php
+
+This is the application’s public entry point.
+
+It must remain thin.
+
+It may:
+
+- load Composer autoloading
+- invoke the minimal application bootstrap
+- produce a temporary controlled setup response
+
+It must NOT contain:
+
+- SQL
+- routing tables
+- authentication
+- authorization
+- employee logic
+- business logic
+- database connections
+- feature-specific HTML
+
+The repository root must not be treated as the web document root.
+
+7. Bootstrap boundary
+
+Implement only the minimum bootstrap/configuration boundary required by Phase 01.
+
+The design should make it possible for future phases to add dependency construction without turning public/index.php into a large script.
+
+Do not build a service container or framework-like application kernel.
+
+Do not use:
+
+- global service locators
+- static dependency registries
+- hidden singleton state
+
+Keep dependency construction explicit.
+
+8. Environment configuration
+
+Create:
+
+.env.example
+
+with safe placeholder configuration.
+
+It may document values such as:
+
+APP_NAME
+APP_ENV
+APP_DEBUG
+APP_URL
+APP_TIMEZONE
+
+Database variables may be documented as future configuration if appropriate, but Phase 01 must not establish a database connection.
+
+Do not create or commit real credentials.
+
+If using environment variables directly, centralize access through the configuration/bootstrap boundary.
+
+Do not scatter calls to:
+
+$_ENV
+$\_SERVER
+getenv()
+
+through application code.
+
+If no dotenv library is installed, document clearly how local environment variables are expected to be provided.
+
+9. Configuration
+
+Create only configuration files genuinely needed by Phase 01.
+
+Configuration must:
+
+- remain outside business logic
+- contain no secrets
+- distinguish local/development behavior from production behavior
+- centralize application timezone
+- provide an explicit configuration boundary
+
+Avoid creating a complex framework-style configuration system.
+
+10. Error behavior
+
+Establish a minimal safe distinction between development and production.
+
+Development may provide useful diagnostic information.
+
+Production must not expose:
+
+- stack traces
+- credentials
+- internal filesystem paths
+- SQL information
+
+Do not build the full centralized exception-handling system yet.
+
+That belongs to a later phase.
+
+11. Git ignore
+
+Create or update:
+
+.gitignore
+
+It must appropriately ignore:
+
+- .env
+- vendor/
+- runtime logs
+- runtime uploads when introduced
+- OS metadata such as .DS_Store
+- editor-specific local files where appropriate
+- coverage/cache/temp output where appropriate
+
+Do not ignore:
+
+- composer.json
+- composer.lock
+- .env.example
+- source code
+- docs
+- future migrations
+- reviewed public assets
+
+12. README
+
+Update README.md for Phase 01.
+
+Explain:
+
+- project purpose
+- PHP >= 8.3 requirement
+- Composer requirement
+- required/planned PHP extensions
+- installation steps
+- configuration approach
+- how to create local .env configuration if applicable
+- how to verify PHP
+- how to install Composer dependencies
+- how to run Composer autoload generation
+- how to run the local PHP development server
+
+Local development server example:
+
+php -S localhost:8000 -t public
+
+Clearly state that PHP’s built-in server is for local development only.
+
+Explain why:
+
+public/
+
+is the document root.
+
+Also document what Phase 01 intentionally does NOT implement.
+
+13. Composer execution
+
+After composer.json has been created, validate it.
+
+If Composer is available, run the minimum commands necessary to verify the setup, such as:
+
+composer validate
+composer install
+composer dump-autoload
+
+Do not update dependencies unnecessarily.
+
+If composer.lock is generated normally by Composer, keep it.
+
+Do not manually fabricate composer.lock.
+
+14. Verification
+
+Verify as much of the Phase 01 acceptance criteria as possible.
+
+Check:
+
+php -v
+composer --version
+composer validate
+
+Verify PSR-4 autoloading.
+
+Verify that:
+
+App\
+
+maps correctly to:
+
+src/
+
+Verify that public/index.php can bootstrap without manually requiring application source classes.
+
+Where practical, verify the application with:
+
+php -S localhost:8000 -t public
+
+and confirm the entry point produces the intended temporary setup response.
+
+Do not leave a long-running development server running after verification.
+
+Also inspect Git status after implementation.
+
+15. Do NOT implement future features
+
+Do NOT implement:
+
+- Router
+- Route definitions
+- Controllers
+- Middleware
+- Views
+- Material Design UI
+- MySQL connection
+- PDO connection factory
+- Repositories
+- Database migrations
+- Authentication
+- Authorization
+- Sessions
+- CSRF
+- Validation framework
+- Branch CRUD
+- Department CRUD
+- Employee CRUD
+- Search
+- Pagination
+- Contracts
+- Portfolio
+- Dashboard
+
+No feature code belongs in this branch.
+
+16. Git safety
+
+Do NOT:
+
+- commit
+- push
+- merge
+- create another branch
+- switch branches
+- reset existing work
+- delete user files
+
+I will review the implementation manually before staging or committing anything.
+
+17. Final report
+
+After implementation and verification, stop and report:
+
+1. Files created
+2. Files modified
+3. Directories created
+4. Composer configuration
+5. PSR-4 mapping
+6. Configuration strategy
+7. Verification commands executed
+8. Verification results
+9. Anything intentionally deferred
+10. Current Git status summary
+
+Do not continue into Phase 02.
