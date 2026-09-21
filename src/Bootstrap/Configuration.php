@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace App\Bootstrap;
 
+use App\Database\DatabaseConfiguration;
 use DateTimeZone;
 use InvalidArgumentException;
 use RuntimeException;
 
 final class Configuration
 {
-    /**
-     * @param array<string, mixed> $values
-     */
-    private function __construct(private readonly array $values)
-    {
+    /** @var array<string, mixed> */
+    private readonly array $databaseDefaults;
+
+    /** @param array<string, mixed> $values */
+    private function __construct(
+        private readonly array $values,
+        private readonly array $environment,
+        array $databaseDefaults,
+    ) {
+        $this->databaseDefaults = $databaseDefaults;
     }
 
     /**
@@ -36,7 +42,13 @@ final class Configuration
             'app_timezone' => self::timezoneValue($defaults['app_timezone'] ?? 'UTC', $environment),
         ];
 
-        return new self($values);
+        $databaseDefaults = $defaults['database'] ?? [];
+
+        if (!is_array($databaseDefaults)) {
+            throw new RuntimeException('Database configuration defaults must be an array.');
+        }
+
+        return new self($values, $environment, $databaseDefaults);
     }
 
     public function name(): string
@@ -62,6 +74,11 @@ final class Configuration
     public function timezone(): string
     {
         return $this->values['app_timezone'];
+    }
+
+    public function database(): DatabaseConfiguration
+    {
+        return DatabaseConfiguration::fromEnvironment($this->environment, $this->databaseDefaults);
     }
 
     private static function environmentValue(mixed $default, array $environment): string

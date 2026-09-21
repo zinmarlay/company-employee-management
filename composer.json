@@ -11,7 +11,8 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/"
+            "App\\": "src/",
+            "Database\\Migrations\\": "database/migrations/"
         }
     },
     "autoload-dev": {

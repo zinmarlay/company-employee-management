@@ -25,7 +25,7 @@ The current local development environment uses PHP 8.5.x. Verify the active PHP 
 php -v
 ```
 
-Planned PHP extensions include PDO and `pdo_mysql` for the later database phase, `mbstring` for reliable Japanese and multibyte text handling, and `fileinfo` for safe employee-photo upload handling. Phase 01 does not connect to MySQL.
+The database foundation requires PDO and `pdo_mysql` when database commands or database integration tests are used. `mbstring` remains planned for reliable Japanese and multibyte text handling, and `fileinfo` remains planned for safe employee-photo upload handling.
 
 ## Installation
 
@@ -55,7 +55,7 @@ export APP_URL=http://localhost:8000
 export APP_TIMEZONE=Asia/Tokyo
 ```
 
-Do not add real credentials to the repository. Database variables are documented for a later phase only.
+Do not add real credentials to the repository. Database variables are documented in `.env.example`; PHP does not load that file automatically.
 
 ## Local development server
 
@@ -85,3 +85,36 @@ The following are deferred to later branches:
 Future phases must preserve the front-controller and configuration boundaries established here and must introduce directories only when they have a real responsibility.
 
 Phase 02 does not implement MySQL, PDO, repositories, authentication, authorization, sessions, CSRF, business services, employee features, dashboard data, file uploads, a complete Material Design interface, API endpoints, or SPA architecture.
+
+## Phase 03 status
+
+Phase 03 establishes the database foundation without coupling the existing HTTP application to MySQL. Database configuration is resolved through the bootstrap configuration boundary, `ConnectionFactory` creates PDO connections with explicit safe defaults, and versioned migrations are managed through the CLI boundary.
+
+Phase 03 does not create business tables or implement repositories, services, authentication, authorization, or employee features. The web entry point remains usable without database credentials or a running MySQL server.
+
+### Database configuration
+
+The minimum runtime requirement is PHP >= 8.3. Phase 03 also requires the PDO extension and the `pdo_mysql` driver when a database connection is used. Verify the active runtime and available driver with:
+
+```sh
+php -v
+php -m | grep -E 'PDO|pdo_mysql'
+```
+
+Database values are read at the configuration boundary. `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` must be explicitly configured before a connection is attempted; `DB_PASSWORD` may intentionally be an empty string. `DB_HOST`, `DB_PORT`, and `DB_CHARSET` default to `127.0.0.1`, `3306`, and `utf8mb4` respectively. Do not commit real credentials.
+
+### Migration commands
+
+Run migration commands from the project root. They use the configured environment and do not run automatically during web requests:
+
+```sh
+php bin/migrate status
+php bin/migrate migrate
+php bin/migrate rollback
+```
+
+The current migration directory contains only migration infrastructure; business migrations are deferred to later feature branches. Migration classes are deterministic `VersionYYYYMMDDHHMMSSName` classes implementing `MigrationInterface`, and applied migrations are tracked in `schema_migrations`.
+
+### Database tests
+
+Unit tests do not require MySQL. Integration tests run only when `APP_ENV=test` and all `DB_TEST_*` variables are explicitly supplied. The test database name must end in `_test` and must be different from the normal application database. If those conditions are not met, integration tests are skipped or fail safely rather than guessing a database target.

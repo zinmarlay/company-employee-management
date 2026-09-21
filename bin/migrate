@@ -1,0 +1,50 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Bootstrap\Configuration;
+use App\Database\ConnectionFactory;
+use App\Database\Migration\MigrationDiscovery;
+use App\Database\Migration\MigrationRunner;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$command = $argv[1] ?? null;
+$commands = ['migrate', 'status', 'rollback'];
+
+if (!is_string($command) || !in_array($command, $commands, true)) {
+    fwrite(STDERR, "Usage: php bin/migrate <migrate|status|rollback>\n");
+    exit(2);
+}
+
+try {
+    $projectRoot = dirname(__DIR__);
+    $configuration = Configuration::fromEnvironment($projectRoot . '/config/app.php');
+    $connection = (new ConnectionFactory($configuration->database()))->create();
+    $runner = new MigrationRunner(
+        $connection,
+        new MigrationDiscovery($projectRoot . '/database/migrations'),
+    );
+
+    if ($command === 'migrate') {
+        $count = $runner->migrate();
+        fwrite(STDOUT, sprintf("Applied migrations: %d\n", $count));
+    } elseif ($command === 'rollback') {
+        $count = $runner->rollback();
+        fwrite(STDOUT, sprintf("Rolled back migrations: %d\n", $count));
+    } else {
+        foreach ($runner->status() as $migration) {
+            fwrite(STDOUT, sprintf(
+                "%s %s\n",
+                $migration['applied'] ? 'applied' : 'pending',
+                $migration['name'],
+            ));
+        }
+    }
+
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Database command failed: ' . $exception->getMessage() . "\n");
+    exit(1);
+}
