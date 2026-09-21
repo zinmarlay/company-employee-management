@@ -1,0 +1,27 @@
+# Environment and secrets
+/.env
+/.env.*
+!/.env.example
+
+# Composer dependencies
+/vendor/
+
+# Runtime data
+/storage/logs/*
+/storage/uploads/*
+*.log
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+
+# Editor and IDE metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test, coverage, cache, and temporary output
+/coverage/
+/cache/
+/tmp/
