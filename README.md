@@ -113,8 +113,12 @@ php bin/migrate migrate
 php bin/migrate rollback
 ```
 
-The current migration directory contains only migration infrastructure; business migrations are deferred to later feature branches. Migration classes are deterministic `VersionYYYYMMDDHHMMSSName` classes implementing `MigrationInterface`, and applied migrations are tracked in `schema_migrations`.
+Migration classes are deterministic `VersionYYYYMMDDHHMMSSName` classes implementing `MigrationInterface`, and applied migrations are tracked in `schema_migrations`. The current domain migrations create companies, branches, departments, and employees in dependency order. They are applied only when `php bin/migrate migrate` is run; the HTTP application does not run them automatically.
 
 ### Database tests
 
 Unit tests do not require MySQL. Integration tests run only when `APP_ENV=test` and all `DB_TEST_*` variables are explicitly supplied. The test database name must end in `_test` and must be different from the normal application database. If those conditions are not met, integration tests are skipped or fail safely rather than guessing a database target.
+
+The Phase 04 integration coverage checks the company/branch/department/employee schema, scoped uniqueness, required relationships, optional department assignment, cross-branch assignment rejection, deletion restrictions, check constraints, migration idempotency, and reverse-order rollback. The configured MySQL or MariaDB version must enforce `CHECK` constraints; use the integration suite to verify status and employee-type values are rejected by the actual test engine.
+
+The Phase 04 schema decisions are documented in [docs/specs/04-domain-schema.md](docs/specs/04-domain-schema.md). They do not add application CRUD, repositories, authentication, or UI behavior.
