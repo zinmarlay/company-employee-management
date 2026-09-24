@@ -34,6 +34,15 @@ final class Response
         return self::create($body, $statusCode, self::withDefaultContentType($headers, 'text/plain; charset=utf-8'));
     }
 
+    public static function redirect(string $location, int $statusCode = 303): self
+    {
+        if ($statusCode < 300 || $statusCode > 399) {
+            throw new InvalidArgumentException('Redirect status code must be between 300 and 399.');
+        }
+
+        return self::create('', $statusCode, ['Location' => $location]);
+    }
+
     /**
      * @param array<string, string> $headers
      */
