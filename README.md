@@ -169,3 +169,17 @@ target.
 The Phase 04 integration coverage checks the company/branch/department/employee schema, scoped uniqueness, required relationships, optional department assignment, cross-branch assignment rejection, deletion restrictions, check constraints, migration idempotency, and reverse-order rollback. The configured MySQL or MariaDB version must enforce `CHECK` constraints; use the integration suite to verify status and employee-type values are rejected by the actual test engine.
 
 The Phase 04 schema decisions are documented in [docs/specs/04-domain-schema.md](docs/specs/04-domain-schema.md). They do not add application CRUD, repositories, authentication, or UI behavior.
+
+## Phase 05a status
+
+Phase 05a adds the shared Material Design-inspired administration shell for
+the existing server-rendered application. The layout, responsive CSS, shared
+view partials, employee list, employee forms, employee detail, deactivation,
+and root welcome page use the same presentation system without changing
+employee business rules or database behavior.
+
+The sidebar links only to implemented routes. Future organization and
+dispatch areas are shown as disabled placeholders until their respective
+phases are implemented. See
+[docs/specs/05a-material-ui-foundation.md](docs/specs/05a-material-ui-foundation.md)
+for the UI architecture and accessibility decisions.

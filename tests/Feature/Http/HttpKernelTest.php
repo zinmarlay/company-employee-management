@@ -15,14 +15,16 @@ use RuntimeException;
 
 final class HttpKernelTest extends TestCase
 {
-    public function testComposedSetupRouteReturnsServerRenderedHtml(): void
+    public function testComposedSetupRouteReturnsTheSharedAdminShell(): void
     {
         $kernel = (new ApplicationBootstrap(dirname(__DIR__, 3)))->boot();
         $response = $kernel->handle(Request::fromValues('GET', '/'));
 
         self::assertSame(200, $response->statusCode());
         self::assertSame('text/html; charset=utf-8', $response->header('Content-Type'));
-        self::assertStringContainsString('Phase 02 HTTP and presentation architecture is active.', $response->body());
+        self::assertStringContainsString('Welcome to Company Employee Management System', $response->body());
+        self::assertStringContainsString('class="app-shell"', $response->body());
+        self::assertStringContainsString('/assets/css/app.css', $response->body());
     }
 
     public function testUnknownRouteReturns404(): void

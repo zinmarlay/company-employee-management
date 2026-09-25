@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\View;
 
+use App\Localization\Translator;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 
 final class ViewRenderer
 {
-    public function __construct(private readonly string $viewsRoot)
-    {
+    private readonly Translator $translator;
+
+    public function __construct(
+        private readonly string $viewsRoot,
+        ?Translator $translator = null,
+    ) {
+        $this->translator = $translator ?? new Translator(dirname($viewsRoot) . '/lang');
     }
 
     /**
@@ -20,6 +26,9 @@ final class ViewRenderer
     public function render(string $view, array $data = []): string
     {
         $templatePath = $this->resolve($view);
+        $data['translator'] = $this->translator;
+        $data['locale'] = $this->translator->locale();
+        $data['t'] = fn (string $key, array $replace = []): string => $this->translator->get($key, $replace);
 
         ob_start();
 
@@ -39,8 +48,18 @@ final class ViewRenderer
      */
     public function renderPage(string $view, array $data = [], string $layout = 'layout'): string
     {
+        if (isset($data['pageTitleKey']) && is_string($data['pageTitleKey'])) {
+            $data['pageTitle'] = $this->translator->get($data['pageTitleKey']);
+        }
+
         $content = $this->render($view, $data);
-        $layoutData = [...$data, 'content' => $content];
+        $layoutData = [
+            ...$data,
+            'content' => $content,
+            'translator' => $this->translator,
+            'locale' => $this->translator->locale(),
+            't' => fn (string $key, array $replace = []): string => $this->translator->get($key, $replace),
+        ];
 
         return $this->render($layout, $layoutData);
     }

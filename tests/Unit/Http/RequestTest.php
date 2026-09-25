@@ -17,6 +17,7 @@ final class RequestTest extends TestCase
             ['page' => '2'],
             ['name' => 'Tanaka'],
             ['X-Request-Id' => 'request-123'],
+            ['app_locale' => 'ja'],
         );
 
         self::assertSame('POST', $request->method());
@@ -24,6 +25,7 @@ final class RequestTest extends TestCase
         self::assertSame('2', $request->query('page'));
         self::assertSame('Tanaka', $request->body('name'));
         self::assertSame('request-123', $request->header('x-request-id'));
+        self::assertSame('ja', $request->cookie('app_locale'));
     }
 
     public function testRouteParametersAreAttachedImmutably(): void

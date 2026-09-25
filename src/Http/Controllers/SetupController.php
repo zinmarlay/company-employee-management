@@ -20,9 +20,12 @@ final class SetupController
     public function __invoke(Request $request): Response
     {
         $page = $this->views->renderPage('setup', [
-            'pageTitle' => 'Project Setup',
+            'pageTitleKey' => 'shell.overview',
+            'appNameKey' => 'shell.application_name',
             'appName' => $this->configuration->name(),
             'requestPath' => $request->path(),
+            'currentPath' => $request->path(),
+            'activeNav' => 'dashboard',
         ]);
 
         return Response::html($page);

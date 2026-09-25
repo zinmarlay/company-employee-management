@@ -10,6 +10,7 @@ final class Request
      * @param array<string, mixed> $queryParameters
      * @param array<string, mixed> $bodyParameters
      * @param array<string, string> $headers
+     * @param array<string, string> $cookies
      * @param array<string, string> $routeParameters
      */
     private function __construct(
@@ -18,6 +19,7 @@ final class Request
         private readonly array $queryParameters,
         private readonly array $bodyParameters,
         private readonly array $headers,
+        private readonly array $cookies,
         private readonly array $routeParameters,
     ) {
     }
@@ -30,6 +32,7 @@ final class Request
             is_array($_GET) ? $_GET : [],
             is_array($_POST) ? $_POST : [],
             self::headersFromServer($_SERVER),
+            is_array($_COOKIE) ? $_COOKIE : [],
         );
     }
 
@@ -37,6 +40,7 @@ final class Request
      * @param array<string, mixed> $queryParameters
      * @param array<string, mixed> $bodyParameters
      * @param array<string, string> $headers
+     * @param array<string, string> $cookies
      */
     public static function fromValues(
         string $method,
@@ -44,6 +48,7 @@ final class Request
         array $queryParameters = [],
         array $bodyParameters = [],
         array $headers = [],
+        array $cookies = [],
     ): self {
         $normalizedHeaders = [];
 
@@ -57,6 +62,7 @@ final class Request
             $queryParameters,
             $bodyParameters,
             $normalizedHeaders,
+            $cookies,
             [],
         );
     }
@@ -102,6 +108,11 @@ final class Request
         return $this->headers[strtolower($name)] ?? $default;
     }
 
+    public function cookie(string $name, ?string $default = null): ?string
+    {
+        return $this->cookies[$name] ?? $default;
+    }
+
     /**
      * @return array<string, string>
      */
@@ -134,6 +145,7 @@ final class Request
             $this->queryParameters,
             $this->bodyParameters,
             $this->headers,
+            $this->cookies,
             $routeParameters,
         );
     }

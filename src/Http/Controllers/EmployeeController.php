@@ -25,7 +25,9 @@ final class EmployeeController
     public function index(Request $request): Response
     {
         $page = $this->views->renderPage('employees/index', [
-            'pageTitle' => 'Employees',
+            'pageTitleKey' => 'employees.title',
+            'currentPath' => $request->path(),
+            'activeNav' => 'employees',
             'employees' => $this->employees->listEmployees(),
             'notice' => $this->notice($request),
         ]);
@@ -35,7 +37,7 @@ final class EmployeeController
 
     public function create(Request $request): Response
     {
-        return $this->renderForm($this->employees->createForm(), 200, 'employees/create');
+        return $this->renderForm($request, $this->employees->createForm(), 200, 'employees/create');
     }
 
     public function store(Request $request): Response
@@ -50,7 +52,7 @@ final class EmployeeController
         $form['values'] = $result['values'];
         $form['errors'] = $result['errors'];
 
-        return $this->renderForm($form, 422, 'employees/create');
+        return $this->renderForm($request, $form, 422, 'employees/create');
     }
 
     public function show(Request $request): Response
@@ -67,6 +69,8 @@ final class EmployeeController
 
         $page = $this->views->renderPage('employees/show', [
             'pageTitle' => $employee['first_name'] . ' ' . $employee['last_name'],
+            'currentPath' => $request->path(),
+            'activeNav' => 'employees',
             'employee' => $employee,
             'notice' => $this->notice($request),
         ]);
@@ -83,7 +87,7 @@ final class EmployeeController
             throw new NotFoundException($request->path());
         }
 
-        return $this->renderForm($form, 200, 'employees/edit');
+        return $this->renderForm($request, $form, 200, 'employees/edit');
     }
 
     public function update(Request $request): Response
@@ -108,7 +112,7 @@ final class EmployeeController
         $form['values'] = $result['values'];
         $form['errors'] = $result['errors'];
 
-        return $this->renderForm($form, 422, 'employees/edit');
+        return $this->renderForm($request, $form, 422, 'employees/edit');
     }
 
     public function deactivateConfirmation(Request $request): Response
@@ -121,7 +125,9 @@ final class EmployeeController
         }
 
         $page = $this->views->renderPage('employees/deactivate', [
-            'pageTitle' => 'Deactivate employee',
+            'pageTitleKey' => 'employees.deactivate_title',
+            'currentPath' => $request->path(),
+            'activeNav' => 'employees',
             'employee' => $employee,
         ]);
 
@@ -143,11 +149,15 @@ final class EmployeeController
     /**
      * @param array<string, mixed> $form
      */
-    private function renderForm(array $form, int $status, string $view): Response
+    private function renderForm(Request $request, array $form, int $status, string $view): Response
     {
-        $pageTitle = $view === 'employees/edit' ? 'Edit employee' : 'Create employee';
+        $pageTitleKey = $view === 'employees/edit'
+            ? 'employees.edit_title'
+            : 'employees.create_title';
         $page = $this->views->renderPage($view, [
-            'pageTitle' => $pageTitle,
+            'pageTitleKey' => $pageTitleKey,
+            'currentPath' => $request->path(),
+            'activeNav' => 'employees',
             ...$form,
         ]);
 
