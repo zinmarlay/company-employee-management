@@ -75,6 +75,11 @@ final class Translator
             'Start date must be on or before end date.' => 'validation.date_order',
             'End date must be on or after start date.' => 'validation.date_order_end',
             'This contract overlaps an existing period.' => 'validation.contract_overlap',
+            'Select an existing company.' => 'validation.existing_company',
+            'The branch company cannot be changed.' => 'validation.branch_parent_immutable',
+            'The department branch cannot be changed.' => 'validation.department_parent_immutable',
+            'A branch with this code already exists for the selected company.' => 'validation.duplicate_branch_code',
+            'A department with this code already exists for the selected branch.' => 'validation.duplicate_department_code',
         ];
 
         if (isset($directMessages[$message])) {

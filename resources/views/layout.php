@@ -17,8 +17,8 @@ $content = (string) ($data['content'] ?? '');
 $navigation = [
     ['key' => 'dashboard', 'labelKey' => 'navigation.dashboard', 'href' => '/', 'icon' => '⌂', 'available' => true],
     ['key' => 'employees', 'labelKey' => 'navigation.employees', 'href' => '/employees', 'icon' => '●', 'available' => true],
-    ['key' => 'branches', 'labelKey' => 'navigation.branches', 'href' => null, 'icon' => '⌖', 'available' => false],
-    ['key' => 'departments', 'labelKey' => 'navigation.departments', 'href' => null, 'icon' => '▦', 'available' => false],
+    ['key' => 'branches', 'labelKey' => 'navigation.branches', 'href' => '/branches', 'icon' => '⌖', 'available' => true],
+    ['key' => 'departments', 'labelKey' => 'navigation.departments', 'href' => '/departments', 'icon' => '▦', 'available' => true],
     ['key' => 'dispatch-companies', 'labelKey' => 'navigation.dispatch_companies', 'href' => '/dispatch-companies', 'icon' => '▱', 'available' => true],
     ['key' => 'dispatch-contracts', 'labelKey' => 'navigation.dispatch_contracts', 'href' => '/dispatch-contracts/create', 'icon' => '▤', 'available' => true],
 ];

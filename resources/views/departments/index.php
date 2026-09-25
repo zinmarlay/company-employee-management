@@ -1,0 +1,17 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Http\View\HtmlEscaper;
+
+$t = $data['t'] ?? static fn (string $key, array $replace = []): string => $key;
+$departments = is_array($data['departments'] ?? null) ? $data['departments'] : [];
+$escape = static fn (mixed $value): string => HtmlEscaper::escape($value);
+?>
+<section class="page-section">
+    <?php $data['pageEyebrowKey'] = 'departments.directory'; $data['pageDescriptionKey'] = 'departments.description'; $data['pageActions'] = [['href' => '/departments/create', 'labelKey' => 'actions.create_department', 'variant' => 'primary']]; include __DIR__ . '/../partials/page-header.php'; ?>
+    <?php if (($data['notice'] ?? null) === 'deactivated'): ?><div class="alert alert--success" role="status"><?= $escape($t('departments.deactivated_success')) ?></div><?php elseif (($data['notice'] ?? null) === 'already-inactive'): ?><div class="alert alert--info" role="status"><?= $escape($t('departments.already_inactive_notice')) ?></div><?php endif; ?>
+    <?php if ($departments === []): ?><?php $data['emptyTitleKey'] = 'departments.no_departments'; $data['emptyMessageKey'] = 'departments.empty_description'; $data['emptyActionHref'] = '/departments/create'; $data['emptyActionLabelKey'] = 'actions.create_department'; include __DIR__ . '/../partials/empty-state.php'; ?><?php else: ?>
+        <div class="card table-card"><div class="table-card__header"><div><h2><?= $escape($t('departments.list_heading')) ?></h2><p class="muted-text"><?= $escape($t('departments.list_description')) ?></p></div><span class="record-count"><?= $escape($t('departments.record_count', ['count' => (string) count($departments)])) ?></span></div><div class="table-scroll"><table class="data-table"><thead><tr><th><?= $escape($t('form.company')) ?></th><th><?= $escape($t('form.branch')) ?></th><th><?= $escape($t('form.department_code')) ?></th><th><?= $escape($t('form.department_name')) ?></th><th><?= $escape($t('table.employees')) ?></th><th><?= $escape($t('table.status')) ?></th><th><span class="visually-hidden"><?= $escape($t('table.actions')) ?></span></th></tr></thead><tbody><?php foreach ($departments as $department): $id = (int) $department['id']; $active = ($department['status'] ?? '') === 'active'; ?><tr><td><?= $escape(($department['company_code'] ?? '') . ' ' . ($department['company_name'] ?? '')) ?></td><td><?= $escape(($department['branch_code'] ?? '') . ' ' . ($department['branch_name'] ?? '')) ?></td><td><span class="code-text"><?= $escape($department['code']) ?></span></td><td><a class="table-primary-link" href="/departments/<?= $id ?>"><?= $escape($department['name']) ?></a></td><td><?= $escape($department['employee_count'] ?? 0) ?></td><td><?php $chipLabelKey = $active ? 'status.active' : 'status.inactive'; $chipTone = $active ? 'success' : 'neutral'; include __DIR__ . '/../partials/status-chip.php'; ?></td><td><div class="table-actions"><a class="button button--text button--small" href="/departments/<?= $id ?>"><?= $escape($t('actions.view')) ?></a><a class="button button--text button--small" href="/departments/<?= $id ?>/edit"><?= $escape($t('actions.edit')) ?></a><?php if ($active): ?><a class="button button--text button--small button--danger-text" href="/departments/<?= $id ?>/deactivate"><?= $escape($t('actions.deactivate')) ?></a><?php endif; ?></div></td></tr><?php endforeach; ?></tbody></table></div></div>
+    <?php endif; ?>
+</section>

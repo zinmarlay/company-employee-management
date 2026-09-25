@@ -97,8 +97,18 @@ final class DevelopmentSeederIntegrationTest extends TestCase
             'SELECT COUNT(*) FROM dispatch_contracts c '
             . 'INNER JOIN employees e ON e.id = c.employee_id '
             . 'INNER JOIN dispatch_companies d ON d.id = c.dispatch_company_id '
-            . "WHERE (e.employee_code = 'EMP002' AND d.code = 'TECH-PARTNERS') "
-            . "OR (e.employee_code = 'EMP004' AND d.code = 'NEXT-STAFF')",
+            . 'WHERE (e.employee_code = \'EMP002\' AND d.code = \'TECH-PARTNERS\' '
+            . 'AND c.start_date = \'2026-03-29\' AND c.end_date = \'2026-05-27\') '
+            . 'OR (e.employee_code = \'EMP002\' AND d.code = \'TECH-PARTNERS\' '
+            . 'AND c.start_date = \'2026-05-28\' AND c.end_date = \'2026-10-02\') '
+            . 'OR (e.employee_code = \'EMP002\' AND d.code = \'TECH-PARTNERS\' '
+            . 'AND c.start_date = \'2026-10-03\' AND c.end_date = \'2026-11-09\') '
+            . 'OR (e.employee_code = \'EMP004\' AND d.code = \'NEXT-STAFF\' '
+            . 'AND c.start_date = \'2026-06-27\' AND c.end_date = \'2026-08-25\') '
+            . 'OR (e.employee_code = \'EMP004\' AND d.code = \'NEXT-STAFF\' '
+            . 'AND c.start_date = \'2026-08-26\' AND c.end_date = \'2026-10-25\') '
+            . 'OR (e.employee_code = \'EMP004\' AND d.code = \'NEXT-STAFF\' '
+            . 'AND c.start_date = \'2026-10-26\' AND c.end_date = \'2027-01-23\')',
         )->fetchColumn());
         self::assertSame(1, $this->countWhere('dispatch_contracts', "start_date = '2025-01-01' AND end_date = '2025-03-31'"));
         self::assertSame(0, $this->countWhere('dispatch_contracts', 'start_date > end_date'));
