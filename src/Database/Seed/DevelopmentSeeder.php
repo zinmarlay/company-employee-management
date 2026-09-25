@@ -49,6 +49,7 @@ final class DevelopmentSeeder
             $this->upsertBranches($companyId, $timestamp);
             $this->upsertDepartments($timestamp);
             $this->upsertEmployees($timestamp);
+            $this->synchronizeEmployeeCodeSequence();
             $this->upsertDispatchCompanies($timestamp);
             $this->upsertContracts($timestamp);
 
@@ -218,28 +219,28 @@ final class DevelopmentSeeder
     {
         $employees = [
             [
-                'code' => 'EMP001', 'first_name' => '太郎', 'last_name' => '山田',
+                'code' => 'EMP000001', 'first_name' => '太郎', 'last_name' => '山田',
                 'first_name_kana' => 'タロウ', 'last_name_kana' => 'ヤマダ',
                 'email' => 'taro.yamada@example.test', 'phone' => '03-1111-0001',
                 'position_title' => 'シニアエンジニア', 'type' => 'permanent',
                 'hire_date' => '2022-04-01', 'department' => 'TOKYO:DEV',
             ],
             [
-                'code' => 'EMP002', 'first_name' => '花子', 'last_name' => '佐藤',
+                'code' => 'EMP000002', 'first_name' => '花子', 'last_name' => '佐藤',
                 'first_name_kana' => 'ハナコ', 'last_name_kana' => 'サトウ',
                 'email' => 'hanako.sato@example.test', 'phone' => '03-1111-0002',
                 'position_title' => 'Webエンジニア', 'type' => 'dispatched',
                 'hire_date' => '2025-04-01', 'department' => 'TOKYO:DEV',
             ],
             [
-                'code' => 'EMP003', 'first_name' => '一郎', 'last_name' => '鈴木',
+                'code' => 'EMP000003', 'first_name' => '一郎', 'last_name' => '鈴木',
                 'first_name_kana' => 'イチロウ', 'last_name_kana' => 'スズキ',
                 'email' => 'ichiro.suzuki@example.test', 'phone' => '03-1111-0003',
                 'position_title' => '営業担当', 'type' => 'permanent',
                 'hire_date' => '2023-10-01', 'department' => 'TOKYO:SALES',
             ],
             [
-                'code' => 'EMP004', 'first_name' => '美咲', 'last_name' => '高橋',
+                'code' => 'EMP000004', 'first_name' => '美咲', 'last_name' => '高橋',
                 'first_name_kana' => 'ミサキ', 'last_name_kana' => 'タカハシ',
                 'email' => 'misaki.takahashi@example.test', 'phone' => '06-1111-0004',
                 'position_title' => 'PHPエンジニア', 'type' => 'dispatched',
@@ -380,12 +381,12 @@ final class DevelopmentSeeder
         // Keep these sample periods canonical. Their stable natural tuple is the
         // seed identity, so a later run cannot shift or overlap prior seed data.
         $contracts = [
-            ['EMP002', 'TECH-PARTNERS', '2026-03-29', '2026-05-27'],
-            ['EMP002', 'TECH-PARTNERS', '2026-05-28', '2026-10-02'],
-            ['EMP002', 'TECH-PARTNERS', '2026-10-03', '2026-11-09'],
-            ['EMP004', 'NEXT-STAFF', '2026-06-27', '2026-08-25'],
-            ['EMP004', 'NEXT-STAFF', '2026-08-26', '2026-10-25'],
-            ['EMP004', 'NEXT-STAFF', '2026-10-26', '2027-01-23'],
+            ['EMP000002', 'TECH-PARTNERS', '2026-03-29', '2026-05-27'],
+            ['EMP000002', 'TECH-PARTNERS', '2026-05-28', '2026-10-02'],
+            ['EMP000002', 'TECH-PARTNERS', '2026-10-03', '2026-11-09'],
+            ['EMP000004', 'NEXT-STAFF', '2026-06-27', '2026-08-25'],
+            ['EMP000004', 'NEXT-STAFF', '2026-08-26', '2026-10-25'],
+            ['EMP000004', 'NEXT-STAFF', '2026-10-26', '2027-01-23'],
         ];
 
         foreach ($contracts as [$employeeCode, $companyCode, $startDate, $endDate]) {
@@ -438,6 +439,28 @@ final class DevelopmentSeeder
                 ],
             );
         }
+    }
+
+    private function synchronizeEmployeeCodeSequence(): void
+    {
+        $sequence = $this->fetchOne(
+            'SELECT next_value FROM employee_code_sequences WHERE sequence_name = :sequence_name',
+            ['sequence_name' => 'employee_code'],
+        );
+
+        if ($sequence === null) {
+            throw new DevelopmentSeedException('Employee-code sequence state is missing.');
+        }
+
+        if ((int) $sequence['next_value'] >= 5) {
+            return;
+        }
+
+        $this->execute(
+            'UPDATE employee_code_sequences SET next_value = :next_value '
+            . 'WHERE sequence_name = :sequence_name',
+            ['next_value' => 5, 'sequence_name' => 'employee_code'],
+        );
     }
 
     /** @param array<string, mixed> $parameters */

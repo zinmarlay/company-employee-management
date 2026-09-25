@@ -41,7 +41,9 @@ final class EmployeeHttpTest extends TestCase
         self::assertSame(200, $edit->statusCode());
         self::assertSame(200, $deactivate->statusCode());
         self::assertSame(404, $missing->statusCode());
-        self::assertStringContainsString('EMP-001', $detail->body());
+        self::assertStringContainsString('EMP000001', $detail->body());
+        self::assertStringContainsString('Automatically assigned.', $create->body());
+        self::assertStringContainsString('EMP000001', $edit->body());
         self::assertStringContainsString('&lt;Employee&gt;', $detail->body());
         self::assertStringNotContainsString('<Employee>', $detail->body());
         self::assertStringContainsString('Confirm deactivation', $deactivate->body());
@@ -56,8 +58,7 @@ final class EmployeeHttpTest extends TestCase
             '/employees',
             [],
             [
-                'employee_code' => '<script>alert(1)</script>',
-                'first_name' => 'Taro',
+                'first_name' => '<script>alert(1)</script>',
                 'last_name' => 'Yamada',
                 'first_name_kana' => 'タロウ',
                 'last_name_kana' => 'ヤマダ',
@@ -79,7 +80,6 @@ final class EmployeeHttpTest extends TestCase
     {
         $kernel = $this->kernel();
         $input = [
-            'employee_code' => 'EMP-002',
             'first_name' => 'Hanako',
             'last_name' => 'Sato',
             'first_name_kana' => 'ハナコ',
@@ -99,7 +99,7 @@ final class EmployeeHttpTest extends TestCase
             '/employees/1',
             [],
             array_replace($input, [
-                'employee_code' => 'EMP-001-UPDATED',
+                'employee_code' => 'EMP999999',
                 'email' => 'updated@example.test',
             ]),
         ));
@@ -108,6 +108,9 @@ final class EmployeeHttpTest extends TestCase
         self::assertSame('/employees/2', $created->header('Location'));
         self::assertSame(303, $updated->statusCode());
         self::assertSame('/employees/1', $updated->header('Location'));
+        $detail = $kernel->handle(Request::fromValues('GET', '/employees/1'));
+        self::assertStringContainsString('EMP000001', $detail->body());
+        self::assertStringNotContainsString('EMP999999', $detail->body());
     }
 
     public function testInvalidUpdateReturns422AndDeactivationRedirects(): void
@@ -119,7 +122,6 @@ final class EmployeeHttpTest extends TestCase
             '/employees/1',
             [],
             [
-                'employee_code' => 'EMP-001',
                 'first_name' => '<b>Changed</b>',
                 'last_name' => 'Yamada',
                 'first_name_kana' => 'タロウ',
@@ -225,7 +227,7 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
             'id' => 1,
             'branch_id' => 1,
             'department_id' => 1,
-            'employee_code' => 'EMP-001',
+            'employee_code' => 'EMP000001',
             'first_name' => 'Taro',
             'last_name' => '<Employee>',
             'first_name_kana' => 'タロウ',
@@ -247,6 +249,7 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
         ],
     ];
     private int $nextId = 2;
+    private int $nextEmployeeCode = 2;
 
     public function listBasic(int $limit): array
     {
@@ -298,7 +301,8 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
     public function insert(EmployeeInput $input, string $createdAt, string $updatedAt): int
     {
         $id = $this->nextId++;
-        $this->rows[$id] = $this->rowFromInput($id, $input, $createdAt, $updatedAt);
+        $code = 'EMP' . str_pad((string) $this->nextEmployeeCode++, 6, '0', STR_PAD_LEFT);
+        $this->rows[$id] = $this->rowFromInput($id, $input, $code, $createdAt, $updatedAt);
 
         return $id;
     }
@@ -308,7 +312,7 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
         $current = $this->rows[$id];
         $this->rows[$id] = array_replace(
             $current,
-            $this->rowFromInput($id, $input, (string) $current['created_at'], $updatedAt),
+            $this->rowFromInput($id, $input, (string) $current['employee_code'], (string) $current['created_at'], $updatedAt),
             [
                 'status' => $current['status'],
                 'created_at' => $current['created_at'],
@@ -335,6 +339,7 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
     private function rowFromInput(
         int $id,
         EmployeeInput $input,
+        string $employeeCode,
         string $createdAt,
         string $updatedAt,
     ): array {
@@ -342,7 +347,7 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
             'id' => $id,
             'branch_id' => $input->branchId,
             'department_id' => $input->departmentId,
-            'employee_code' => $input->employeeCode,
+            'employee_code' => $employeeCode,
             'first_name' => $input->firstName,
             'last_name' => $input->lastName,
             'first_name_kana' => $input->firstNameKana,

@@ -45,5 +45,9 @@ final class TranslatorTest extends TestCase
 
         self::assertSame('この項目は必須です。', $this->translator->validationMessage('This field is required.'));
         self::assertSame('10文字以内で入力してください。', $this->translator->validationMessage('This field must be 10 characters or fewer.'));
+        self::assertSame(
+            '新しい社員番号を発行できません。管理者に連絡してください。',
+            $this->translator->validationMessage('A new employee code is currently unavailable. Please contact an administrator.'),
+        );
     }
 }

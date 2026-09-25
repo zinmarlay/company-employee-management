@@ -12,6 +12,7 @@ use App\Database\LazyPdoConnection;
 use App\Database\Migration\MigrationDiscovery;
 use App\Database\Migration\MigrationRunner;
 use App\Domain\Employee\EmployeeDuplicateException;
+use App\Domain\Employee\EmployeeCodeSequenceExhaustedException;
 use App\Infrastructure\Persistence\PdoEmployeeRepository;
 use PDO;
 use PDOException;
@@ -83,7 +84,7 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
             $pdo,
             new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'),
         );
-        self::assertSame(5, $runner->migrate());
+        self::assertSame(6, $runner->migrate());
         $this->repository = new PdoEmployeeRepository(new LazyPdoConnection($configuration));
     }
 
@@ -110,7 +111,6 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
             $this->input([
                 'branchId' => $tokyoBranchId,
                 'departmentId' => $tokyoDepartmentId,
-                'employeeCode' => 'EMP-' . $suffix . '-A',
                 'firstName' => '太郎',
                 'lastName' => '山田',
                 'firstNameKana' => 'タロウ',
@@ -127,7 +127,6 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
             $this->input([
                 'branchId' => $osakaBranchId,
                 'departmentId' => null,
-                'employeeCode' => 'EMP-' . $suffix . '-B',
                 'firstName' => 'Abe',
                 'lastName' => 'Alpha',
                 'email' => 'alpha-' . $suffix . '@example.test',
@@ -140,7 +139,6 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
             $this->input([
                 'branchId' => $tokyoBranchId,
                 'departmentId' => $tokyoDepartmentId,
-                'employeeCode' => 'EMP-' . $suffix . '-C',
                 'firstName' => 'Zed',
                 'lastName' => 'Alpha',
                 'email' => 'zed-' . $suffix . '@example.test',
@@ -171,15 +169,14 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
 
         $limitedRows = $repository->listBasic(2);
         self::assertCount(2, $limitedRows);
-        self::assertSame('EMP-' . $suffix . '-B', $limitedRows[0]['employee_code']);
-        self::assertSame('EMP-' . $suffix . '-C', $limitedRows[1]['employee_code']);
+        self::assertSame('EMP000002', $limitedRows[0]['employee_code']);
+        self::assertSame('EMP000003', $limitedRows[1]['employee_code']);
 
         $repository->update(
             $firstId,
             $this->input([
                 'branchId' => $tokyoBranchId,
                 'departmentId' => null,
-                'employeeCode' => 'EMP-' . $suffix . '-A-UPDATED',
                 'firstName' => '花子',
                 'lastName' => '佐藤',
                 'email' => 'updated-' . $suffix . '@example.test',
@@ -189,7 +186,7 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
         );
         $updated = $repository->findById($firstId);
         self::assertNotNull($updated);
-        self::assertSame('EMP-' . $suffix . '-A-UPDATED', $updated['employee_code']);
+        self::assertSame('EMP000001', $updated['employee_code']);
         self::assertSame('佐藤', $updated['last_name']);
         self::assertNull($updated['department_id']);
         self::assertSame('2026-10-01', $updated['hire_date']);
@@ -197,11 +194,11 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
         self::assertSame('2026-09-24 02:02:03', $updated['updated_at']);
 
         self::assertFalse($repository->employeeCodeExists(
-            'EMP-' . $suffix . '-A-UPDATED',
+            'EMP000001',
             $firstId,
         ));
         self::assertTrue($repository->employeeCodeExists(
-            'EMP-' . $suffix . '-B',
+            'EMP000002',
             $firstId,
         ));
         self::assertFalse($repository->emailExists(
@@ -213,13 +210,11 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
             $firstId,
         ));
 
-        $this->assertDuplicateCode($repository, $tokyoBranchId, $tokyoDepartmentId, $suffix);
         $this->assertDuplicateEmail($repository, $tokyoBranchId, $tokyoDepartmentId, $suffix);
         $this->assertRejected(fn() => $repository->insert(
             $this->input([
                 'branchId' => 999999999,
                 'departmentId' => null,
-                'employeeCode' => 'invalid-branch-' . $suffix,
                 'email' => 'invalid-branch-' . $suffix . '@example.test',
             ]),
             '2026-09-24 03:00:00',
@@ -229,7 +224,6 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
             $this->input([
                 'branchId' => $tokyoBranchId,
                 'departmentId' => $osakaDepartmentId,
-                'employeeCode' => 'cross-branch-' . $suffix,
                 'email' => 'cross-branch-' . $suffix . '@example.test',
             ]),
             '2026-09-24 03:01:00',
@@ -247,30 +241,68 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
         self::assertSame('2026-09-24 04:00:00', $stillInactive['updated_at']);
     }
 
-    private function assertDuplicateCode(
-        PdoEmployeeRepository $repository,
-        int $branchId,
-        int $departmentId,
-        string $suffix,
-    ): void {
+    public function testGeneratedCodeRollbackAndExhaustionAreSafe(): void
+    {
+        $suffix = bin2hex(random_bytes(4));
+        $companyId = $this->insertCompany('employee-sequence-' . $suffix);
+        $branchId = $this->insertBranch($companyId, 'sequence-' . $suffix, 'Tokyo');
+        $departmentId = $this->insertDepartment($branchId, 'sequence-' . $suffix);
+        $repository = $this->repository();
+
+        $firstId = $repository->insert(
+            $this->input([
+                'branchId' => $branchId,
+                'departmentId' => $departmentId,
+                'email' => 'sequence-first-' . $suffix . '@example.test',
+            ]),
+            '2026-09-24 01:00:00',
+            '2026-09-24 01:00:00',
+        );
+        self::assertSame('EMP000001', $repository->findById($firstId)['employee_code']);
+
         try {
             $repository->insert(
                 $this->input([
                     'branchId' => $branchId,
                     'departmentId' => $departmentId,
-                    'employeeCode' => 'EMP-' . $suffix . '-B',
-                    'email' => 'duplicate-code-' . $suffix . '@example.test',
+                    'email' => 'sequence-first-' . $suffix . '@example.test',
                 ]),
-                '2026-09-24 03:02:00',
-                '2026-09-24 03:02:00',
+                '2026-09-24 01:01:00',
+                '2026-09-24 01:01:00',
             );
+            self::fail('Expected duplicate email failure.');
         } catch (EmployeeDuplicateException $exception) {
-            self::assertSame('employee_code', $exception->field);
-
-            return;
+            self::assertSame('email', $exception->field);
         }
 
-        self::fail('Expected a duplicate employee code conflict.');
+        self::assertSame(2, (int) $this->pdo()->query(
+            "SELECT next_value FROM employee_code_sequences WHERE sequence_name = 'employee_code'",
+        )->fetchColumn());
+
+        $this->pdo()->exec(
+            "UPDATE employee_code_sequences SET next_value = 999999 WHERE sequence_name = 'employee_code'",
+        );
+        $lastId = $repository->insert(
+            $this->input([
+                'branchId' => $branchId,
+                'departmentId' => $departmentId,
+                'email' => 'sequence-last-' . $suffix . '@example.test',
+            ]),
+            '2026-09-24 01:02:00',
+            '2026-09-24 01:02:00',
+        );
+        self::assertSame('EMP999999', $repository->findById($lastId)['employee_code']);
+
+        $this->expectException(EmployeeCodeSequenceExhaustedException::class);
+        $repository->insert(
+            $this->input([
+                'branchId' => $branchId,
+                'departmentId' => $departmentId,
+                'email' => 'sequence-exhausted-' . $suffix . '@example.test',
+            ]),
+            '2026-09-24 01:03:00',
+            '2026-09-24 01:03:00',
+        );
     }
 
     private function assertDuplicateEmail(
@@ -284,7 +316,6 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
                 $this->input([
                     'branchId' => $branchId,
                     'departmentId' => $departmentId,
-                    'employeeCode' => 'duplicate-email-' . $suffix,
                     'email' => 'alpha-' . $suffix . '@example.test',
                 ]),
                 '2026-09-24 03:03:00',
@@ -305,7 +336,6 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
     private function input(array $overrides = []): EmployeeInput
     {
         $values = array_replace([
-            'employeeCode' => 'EMP-DEFAULT',
             'firstName' => 'Taro',
             'lastName' => 'Example',
             'firstNameKana' => 'タロウ',
@@ -320,7 +350,6 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
         ], $overrides);
 
         return new EmployeeInput(
-            $values['employeeCode'],
             $values['firstName'],
             $values['lastName'],
             $values['firstNameKana'],
@@ -407,6 +436,7 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
     {
         $pdo->exec('DROP TABLE IF EXISTS dispatch_contracts');
         $pdo->exec('DROP TABLE IF EXISTS dispatch_companies');
+        $pdo->exec('DROP TABLE IF EXISTS employee_code_sequences');
         $pdo->exec('DROP TABLE IF EXISTS employees');
         $pdo->exec('DROP TABLE IF EXISTS departments');
         $pdo->exec('DROP TABLE IF EXISTS branches');

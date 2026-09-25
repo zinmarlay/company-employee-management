@@ -53,7 +53,7 @@ final class DevelopmentSeederIntegrationTest extends TestCase
 
         $this->resetSchema();
         $runner = new MigrationRunner($this->pdo, new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'));
-        self::assertSame(5, $runner->migrate());
+        self::assertSame(6, $runner->migrate());
     }
 
     protected function tearDown(): void
@@ -97,17 +97,17 @@ final class DevelopmentSeederIntegrationTest extends TestCase
             'SELECT COUNT(*) FROM dispatch_contracts c '
             . 'INNER JOIN employees e ON e.id = c.employee_id '
             . 'INNER JOIN dispatch_companies d ON d.id = c.dispatch_company_id '
-            . 'WHERE (e.employee_code = \'EMP002\' AND d.code = \'TECH-PARTNERS\' '
+            . 'WHERE (e.employee_code = \'EMP000002\' AND d.code = \'TECH-PARTNERS\' '
             . 'AND c.start_date = \'2026-03-29\' AND c.end_date = \'2026-05-27\') '
-            . 'OR (e.employee_code = \'EMP002\' AND d.code = \'TECH-PARTNERS\' '
+            . 'OR (e.employee_code = \'EMP000002\' AND d.code = \'TECH-PARTNERS\' '
             . 'AND c.start_date = \'2026-05-28\' AND c.end_date = \'2026-10-02\') '
-            . 'OR (e.employee_code = \'EMP002\' AND d.code = \'TECH-PARTNERS\' '
+            . 'OR (e.employee_code = \'EMP000002\' AND d.code = \'TECH-PARTNERS\' '
             . 'AND c.start_date = \'2026-10-03\' AND c.end_date = \'2026-11-09\') '
-            . 'OR (e.employee_code = \'EMP004\' AND d.code = \'NEXT-STAFF\' '
+            . 'OR (e.employee_code = \'EMP000004\' AND d.code = \'NEXT-STAFF\' '
             . 'AND c.start_date = \'2026-06-27\' AND c.end_date = \'2026-08-25\') '
-            . 'OR (e.employee_code = \'EMP004\' AND d.code = \'NEXT-STAFF\' '
+            . 'OR (e.employee_code = \'EMP000004\' AND d.code = \'NEXT-STAFF\' '
             . 'AND c.start_date = \'2026-08-26\' AND c.end_date = \'2026-10-25\') '
-            . 'OR (e.employee_code = \'EMP004\' AND d.code = \'NEXT-STAFF\' '
+            . 'OR (e.employee_code = \'EMP000004\' AND d.code = \'NEXT-STAFF\' '
             . 'AND c.start_date = \'2026-10-26\' AND c.end_date = \'2027-01-23\')',
         )->fetchColumn());
         self::assertSame(1, $this->countWhere('dispatch_contracts', "start_date = '2025-01-01' AND end_date = '2025-03-31'"));
@@ -130,7 +130,7 @@ final class DevelopmentSeederIntegrationTest extends TestCase
 
     private function insertUnrelatedContract(): void
     {
-        $employeeId = $this->pdo()->query("SELECT id FROM employees WHERE employee_code = 'EMP002'")->fetchColumn();
+        $employeeId = $this->pdo()->query("SELECT id FROM employees WHERE employee_code = 'EMP000002'")->fetchColumn();
         $companyId = $this->pdo()->query("SELECT id FROM dispatch_companies WHERE code = 'TECH-PARTNERS'")->fetchColumn();
         $statement = $this->pdo()->prepare(
             'INSERT INTO dispatch_contracts '
@@ -166,6 +166,7 @@ final class DevelopmentSeederIntegrationTest extends TestCase
     {
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_contracts');
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_companies');
+        $this->pdo?->exec('DROP TABLE IF EXISTS employee_code_sequences');
         $this->pdo?->exec('DROP TABLE IF EXISTS employees');
         $this->pdo?->exec('DROP TABLE IF EXISTS departments');
         $this->pdo?->exec('DROP TABLE IF EXISTS branches');

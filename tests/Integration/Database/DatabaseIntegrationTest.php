@@ -71,6 +71,7 @@ final class DatabaseIntegrationTest extends TestCase
         if ($this->pdo instanceof PDO) {
             $this->pdo->exec('DROP TABLE IF EXISTS dispatch_contracts');
             $this->pdo->exec('DROP TABLE IF EXISTS dispatch_companies');
+            $this->pdo->exec('DROP TABLE IF EXISTS employee_code_sequences');
             $this->pdo->exec('DROP TABLE IF EXISTS employees');
             $this->pdo->exec('DROP TABLE IF EXISTS departments');
             $this->pdo->exec('DROP TABLE IF EXISTS branches');
@@ -131,13 +132,13 @@ final class DatabaseIntegrationTest extends TestCase
             new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'),
         );
 
-        self::assertSame(5, $runner->migrate());
+        self::assertSame(6, $runner->migrate());
         self::assertSame(0, $runner->migrate());
-        self::assertCount(5, $runner->status());
-        self::assertSame(6, (int) $this->pdo?->query(
+        self::assertCount(6, $runner->status());
+        self::assertSame(7, (int) $this->pdo?->query(
             "SELECT COUNT(*) FROM information_schema.tables "
             . "WHERE table_schema = DATABASE() AND table_name IN "
-            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts')",
+            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts', 'employee_code_sequences')",
         )->fetchColumn());
 
         $suffix = bin2hex(random_bytes(4));
@@ -206,11 +207,11 @@ final class DatabaseIntegrationTest extends TestCase
             'DELETE FROM departments WHERE id = :id',
         )->execute(['id' => $tokyoDepartmentId]));
 
-        self::assertSame(5, $runner->rollback());
+        self::assertSame(6, $runner->rollback());
         self::assertSame(0, (int) $this->pdo?->query(
             "SELECT COUNT(*) FROM information_schema.tables "
             . "WHERE table_schema = DATABASE() AND table_name IN "
-            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts')",
+            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts', 'employee_code_sequences')",
         )->fetchColumn());
     }
 
@@ -329,6 +330,7 @@ final class DatabaseIntegrationTest extends TestCase
     {
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_contracts');
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_companies');
+        $this->pdo?->exec('DROP TABLE IF EXISTS employee_code_sequences');
         $this->pdo?->exec('DROP TABLE IF EXISTS employees');
         $this->pdo?->exec('DROP TABLE IF EXISTS departments');
         $this->pdo?->exec('DROP TABLE IF EXISTS branches');

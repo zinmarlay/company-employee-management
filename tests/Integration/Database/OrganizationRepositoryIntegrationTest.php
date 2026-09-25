@@ -58,7 +58,7 @@ final class OrganizationRepositoryIntegrationTest extends TestCase
 
         $this->resetSchema();
         $runner = new MigrationRunner($this->pdo(), new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'));
-        self::assertSame(5, $runner->migrate());
+        self::assertSame(6, $runner->migrate());
         $environment = [
             'DB_HOST' => getenv('DB_TEST_HOST'),
             'DB_PORT' => getenv('DB_TEST_PORT'),
@@ -153,6 +153,7 @@ final class OrganizationRepositoryIntegrationTest extends TestCase
     {
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_contracts');
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_companies');
+        $this->pdo?->exec('DROP TABLE IF EXISTS employee_code_sequences');
         $this->pdo?->exec('DROP TABLE IF EXISTS employees');
         $this->pdo?->exec('DROP TABLE IF EXISTS departments');
         $this->pdo?->exec('DROP TABLE IF EXISTS branches');

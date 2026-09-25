@@ -58,6 +58,7 @@ final class Translator
             'Enter a text value.' => 'validation.text',
             'Select a valid value.' => 'validation.select',
             'Enter a valid email address.' => 'validation.email',
+            'A new employee code is currently unavailable. Please contact an administrator.' => 'validation.employee_code_unavailable',
             'Select a valid employee type.' => 'validation.employee_type',
             'Enter a valid date in YYYY-MM-DD format.' => 'validation.date',
             'Select an existing branch.' => 'validation.existing_branch',

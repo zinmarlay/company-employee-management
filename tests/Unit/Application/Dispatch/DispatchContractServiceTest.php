@@ -137,8 +137,8 @@ final class FakeEmployeeRepository implements EmployeeRepositoryInterface
 
     /** @var array<int, array<string, mixed>> */
     private array $rows = [
-        1 => ['id' => 1, 'employee_code' => 'EMP-1', 'first_name' => 'Taro', 'last_name' => 'Yamada', 'employee_type' => 'dispatched'],
-        2 => ['id' => 2, 'employee_code' => 'EMP-2', 'first_name' => 'Hanako', 'last_name' => 'Sato', 'employee_type' => 'permanent'],
+        1 => ['id' => 1, 'employee_code' => 'EMP000001', 'first_name' => 'Taro', 'last_name' => 'Yamada', 'employee_type' => 'dispatched'],
+        2 => ['id' => 2, 'employee_code' => 'EMP000002', 'first_name' => 'Hanako', 'last_name' => 'Sato', 'employee_type' => 'permanent'],
     ];
 }
 
@@ -146,7 +146,7 @@ final class FakeContractRepository implements DispatchContractRepositoryInterfac
 {
     /** @var array<int, array<string, mixed>> */
     public array $rows = [
-        1 => ['id' => 1, 'employee_id' => 1, 'employee_code' => 'EMP-1', 'employee_name' => 'Yamada Taro', 'employee_type' => 'dispatched', 'dispatch_company_id' => 1, 'dispatch_company_code' => 'PARTNER-1', 'dispatch_company_name' => 'Partner One', 'dispatch_company_status' => 'active', 'start_date' => '2026-01-01', 'end_date' => '2026-03-31', 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00'],
+        1 => ['id' => 1, 'employee_id' => 1, 'employee_code' => 'EMP000001', 'employee_name' => 'Yamada Taro', 'employee_type' => 'dispatched', 'dispatch_company_id' => 1, 'dispatch_company_code' => 'PARTNER-1', 'dispatch_company_name' => 'Partner One', 'dispatch_company_status' => 'active', 'start_date' => '2026-01-01', 'end_date' => '2026-03-31', 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00'],
     ];
     /** @var array<int, DispatchContractInput> */
     public array $inserted = [];

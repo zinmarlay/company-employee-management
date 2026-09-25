@@ -17,7 +17,6 @@ final class EmployeeInputValidator
         $values = [];
         $errors = [];
 
-        $employeeCode = $this->requiredString($rawInput, 'employee_code', 40, $values, $errors);
         $firstName = $this->requiredString($rawInput, 'first_name', 100, $values, $errors);
         $lastName = $this->requiredString($rawInput, 'last_name', 100, $values, $errors);
         $firstNameKana = $this->requiredString($rawInput, 'first_name_kana', 100, $values, $errors);
@@ -46,7 +45,6 @@ final class EmployeeInputValidator
 
         if ($errors === []) {
             $input = new EmployeeInput(
-                $employeeCode,
                 $firstName,
                 $lastName,
                 $firstNameKana,

@@ -7,7 +7,6 @@ namespace App\Application\DTO;
 final readonly class EmployeeInput
 {
     public function __construct(
-        public string $employeeCode,
         public string $firstName,
         public string $lastName,
         public string $firstNameKana,

@@ -45,12 +45,16 @@ $fieldAttributes = static function (string $field) use ($errors, $escape): strin
 
 $selectedBranch = (string) ($values['branch_id'] ?? '');
 $selectedDepartment = (string) ($values['department_id'] ?? '');
+$employeeCode = $data['employeeCode'] ?? null;
 ?>
 <form class="card form-card" method="post" action="<?= $escape($action) ?>">
     <?php if ($errors !== []): ?>
         <div class="alert alert--danger" role="alert">
             <strong><?= $escape($t('form.correct_fields')) ?></strong>
             <span><?= $escape($t('form.submitted_values_kept')) ?></span>
+            <?php if (isset($errors['form'])): ?>
+                <span><?= $escape($translator instanceof \App\Localization\Translator ? $translator->validationMessage((string) $errors['form']) : (string) $errors['form']) ?></span>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
@@ -64,10 +68,12 @@ $selectedDepartment = (string) ($values['department_id'] ?? '');
 
     <div class="form-grid">
         <div class="form-field">
-            <label for="employee_code"><?= $escape($t('form.employee_code')) ?> <span class="required-mark" aria-hidden="true">*</span></label>
-            <input id="employee_code" name="employee_code" value="<?= $escape($value('employee_code')) ?>" maxlength="40" required<?= $fieldAttributes('employee_code') ?>>
-            <p class="field-help"><?= $escape($t('form.employee_code_help')) ?></p>
-            <?= $error('employee_code') ?>
+            <span class="form-label"><?= $escape($t('form.employee_code')) ?></span>
+            <?php if (is_string($employeeCode) && $employeeCode !== ''): ?>
+                <p class="code-text"><?= $escape($employeeCode) ?></p>
+            <?php else: ?>
+                <p class="field-help"><?= $escape($t('form.employee_code_auto_assigned')) ?></p>
+            <?php endif; ?>
         </div>
 
         <div class="form-field">

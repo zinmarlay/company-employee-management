@@ -10,6 +10,7 @@ use App\Application\Validation\EmployeeInputValidator;
 use App\Application\Dispatch\ContractExpirationClassifier;
 use App\Domain\Dispatch\DispatchContractRepositoryInterface;
 use App\Domain\Employee\EmployeeDuplicateException;
+use App\Domain\Employee\EmployeeCodeSequenceExhaustedException;
 use App\Domain\Employee\EmployeeRepositoryInterface;
 use App\Domain\Organization\BranchReadRepositoryInterface;
 use App\Domain\Organization\DepartmentReadRepositoryInterface;
@@ -53,7 +54,6 @@ final class EmployeeService
     {
         return $this->formData(
             [
-                'employee_code' => '',
                 'first_name' => '',
                 'last_name' => '',
                 'first_name_kana' => '',
@@ -105,6 +105,13 @@ final class EmployeeService
 
         try {
             $id = $this->employees->insert($validation->input, $now, $now);
+        } catch (EmployeeCodeSequenceExhaustedException) {
+            return [
+                'success' => false,
+                'id' => null,
+                'values' => $validation->values,
+                'errors' => ['form' => 'A new employee code is currently unavailable. Please contact an administrator.'],
+            ];
         } catch (EmployeeDuplicateException $exception) {
             return [
                 'success' => false,
@@ -307,6 +314,7 @@ final class EmployeeService
             'departmentGroups' => array_values($departmentGroups),
             'mode' => $mode,
             'employeeId' => $id,
+            'employeeCode' => $current === null ? null : (string) ($current['employee_code'] ?? ''),
         ];
     }
 
@@ -317,7 +325,6 @@ final class EmployeeService
     private function valuesFromEmployee(array $employee): array
     {
         return [
-            'employee_code' => (string) $employee['employee_code'],
             'first_name' => (string) $employee['first_name'],
             'last_name' => (string) $employee['last_name'],
             'first_name_kana' => (string) $employee['first_name_kana'],
@@ -378,10 +385,6 @@ final class EmployeeService
             ) {
                 $errors['department_id'] = 'Select an active department.';
             }
-        }
-
-        if ($this->employees->employeeCodeExists($input->employeeCode, $exceptId)) {
-            $errors['employee_code'] = 'An employee with this code already exists.';
         }
 
         if ($this->employees->emailExists($input->email, $exceptId)) {

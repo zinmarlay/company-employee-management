@@ -69,7 +69,6 @@ final class EmployeeServiceTest extends TestCase
     private function validInput(array $overrides = []): array
     {
         return array_replace([
-            'employee_code' => 'EMP-001',
             'first_name' => 'Taro',
             'last_name' => 'Yamada',
             'first_name_kana' => 'TARO',
@@ -151,7 +150,7 @@ final class InMemoryEmployeeRepository implements EmployeeRepositoryInterface
             'id' => 1,
             'branch_id' => 1,
             'department_id' => 1,
-            'employee_code' => 'EXISTING',
+            'employee_code' => 'EMP000001',
             'first_name' => 'Existing',
             'last_name' => 'Employee',
             'first_name_kana' => 'EXISTING',
@@ -209,7 +208,7 @@ final class InMemoryEmployeeRepository implements EmployeeRepositoryInterface
             'id' => 2,
             'branch_id' => $input->branchId,
             'department_id' => $input->departmentId,
-            'employee_code' => $input->employeeCode,
+            'employee_code' => 'EMP000002',
             'email' => $input->email,
             'status' => 'active',
             'created_at' => $createdAt,

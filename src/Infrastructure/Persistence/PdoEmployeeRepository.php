@@ -6,15 +6,22 @@ namespace App\Infrastructure\Persistence;
 
 use App\Application\DTO\EmployeeInput;
 use App\Database\LazyPdoConnection;
+use App\Domain\Employee\EmployeeCodeAllocatorInterface;
 use App\Domain\Employee\EmployeeDuplicateException;
 use App\Domain\Employee\EmployeeRepositoryInterface;
 use PDO;
 use PDOException;
+use Throwable;
 
 final class PdoEmployeeRepository implements EmployeeRepositoryInterface
 {
-    public function __construct(private readonly LazyPdoConnection $connection)
-    {
+    private readonly EmployeeCodeAllocatorInterface $codeAllocator;
+
+    public function __construct(
+        private readonly LazyPdoConnection $connection,
+        ?EmployeeCodeAllocatorInterface $codeAllocator = null,
+    ) {
+        $this->codeAllocator = $codeAllocator ?? new PdoEmployeeCodeAllocator($connection);
     }
 
     public function listBasic(int $limit): array
@@ -67,40 +74,55 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
 
     public function insert(EmployeeInput $input, string $createdAt, string $updatedAt): int
     {
-        $statement = $this->connection->get()->prepare(
-            'INSERT INTO employees '
-            . '(branch_id, department_id, employee_code, first_name, last_name, '
-            . 'first_name_kana, last_name_kana, email, phone, position_title, '
-            . 'employee_type, hire_date, status, created_at, updated_at) '
-            . 'VALUES (:branch_id, :department_id, :employee_code, :first_name, :last_name, '
-            . ':first_name_kana, :last_name_kana, :email, :phone, :position_title, '
-            . ':employee_type, :hire_date, :status, :created_at, :updated_at)',
-        );
+        $pdo = $this->connection->get();
+        $pdo->beginTransaction();
 
         try {
-            $statement->execute([
-                'branch_id' => $input->branchId,
-                'department_id' => $input->departmentId,
-                'employee_code' => $input->employeeCode,
-                'first_name' => $input->firstName,
-                'last_name' => $input->lastName,
-                'first_name_kana' => $input->firstNameKana,
-                'last_name_kana' => $input->lastNameKana,
-                'email' => $input->email,
-                'phone' => $input->phone,
-                'position_title' => $input->positionTitle,
-                'employee_type' => $input->employeeType,
-                'hire_date' => $input->hireDate,
-                'status' => 'active',
-                'created_at' => $createdAt,
-                'updated_at' => $updatedAt,
-            ]);
-        } catch (PDOException $exception) {
-            $this->throwKnownDuplicate($exception);
+            $employeeCode = $this->codeAllocator->allocate();
+            $statement = $pdo->prepare(
+                'INSERT INTO employees '
+                . '(branch_id, department_id, employee_code, first_name, last_name, '
+                . 'first_name_kana, last_name_kana, email, phone, position_title, '
+                . 'employee_type, hire_date, status, created_at, updated_at) '
+                . 'VALUES (:branch_id, :department_id, :employee_code, :first_name, :last_name, '
+                . ':first_name_kana, :last_name_kana, :email, :phone, :position_title, '
+                . ':employee_type, :hire_date, :status, :created_at, :updated_at)',
+            );
+
+            try {
+                $statement->execute([
+                    'branch_id' => $input->branchId,
+                    'department_id' => $input->departmentId,
+                    'employee_code' => $employeeCode,
+                    'first_name' => $input->firstName,
+                    'last_name' => $input->lastName,
+                    'first_name_kana' => $input->firstNameKana,
+                    'last_name_kana' => $input->lastNameKana,
+                    'email' => $input->email,
+                    'phone' => $input->phone,
+                    'position_title' => $input->positionTitle,
+                    'employee_type' => $input->employeeType,
+                    'hire_date' => $input->hireDate,
+                    'status' => 'active',
+                    'created_at' => $createdAt,
+                    'updated_at' => $updatedAt,
+                ]);
+            } catch (PDOException $exception) {
+                $this->throwKnownDuplicate($exception);
+                throw $exception;
+            }
+
+            $id = (int) $pdo->lastInsertId();
+            $pdo->commit();
+
+            return $id;
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
             throw $exception;
         }
-
-        return (int) $this->connection->get()->lastInsertId();
     }
 
     public function update(int $id, EmployeeInput $input, string $updatedAt): void
@@ -108,7 +130,7 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
         $statement = $this->connection->get()->prepare(
             'UPDATE employees SET '
             . 'branch_id = :branch_id, department_id = :department_id, '
-            . 'employee_code = :employee_code, first_name = :first_name, '
+            . 'first_name = :first_name, '
             . 'last_name = :last_name, first_name_kana = :first_name_kana, '
             . 'last_name_kana = :last_name_kana, email = :email, phone = :phone, '
             . 'position_title = :position_title, employee_type = :employee_type, '
@@ -121,7 +143,6 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
                 'id' => $id,
                 'branch_id' => $input->branchId,
                 'department_id' => $input->departmentId,
-                'employee_code' => $input->employeeCode,
                 'first_name' => $input->firstName,
                 'last_name' => $input->lastName,
                 'first_name_kana' => $input->firstNameKana,

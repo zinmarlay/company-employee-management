@@ -115,7 +115,7 @@ final class DispatchHttpContractRepository implements DispatchContractRepository
     public function findHistoryByEmployeeId(int $employeeId): array { return array_values(array_filter($this->rows, static fn (array $row): bool => $row['employee_id'] === $employeeId)); }
     public function findByCompanyId(int $companyId): array { return array_values(array_filter($this->rows, static fn (array $row): bool => $row['dispatch_company_id'] === $companyId)); }
     public function hasOverlap(int $employeeId, string $startDate, string $endDate, ?int $exceptId = null): bool { foreach ($this->rows as $id => $row) if ($row['employee_id'] === $employeeId && $id !== $exceptId && $startDate <= $row['end_date'] && $endDate >= $row['start_date']) return true; return false; }
-    public function insert(DispatchContractInput $input, string $createdAt, string $updatedAt): int { $id = count($this->rows) + 1; $this->rows[$id] = ['id' => $id, 'employee_id' => $input->employeeId, 'employee_code' => 'EMP-1', 'employee_name' => 'Yamada Taro', 'employee_type' => 'dispatched', 'dispatch_company_id' => $input->dispatchCompanyId, 'dispatch_company_code' => 'PARTNER-1', 'dispatch_company_name' => 'Partner One', 'dispatch_company_status' => 'active', 'start_date' => $input->startDate, 'end_date' => $input->endDate, 'created_at' => $createdAt, 'updated_at' => $updatedAt]; return $id; }
+    public function insert(DispatchContractInput $input, string $createdAt, string $updatedAt): int { $id = count($this->rows) + 1; $this->rows[$id] = ['id' => $id, 'employee_id' => $input->employeeId, 'employee_code' => 'EMP000001', 'employee_name' => 'Yamada Taro', 'employee_type' => 'dispatched', 'dispatch_company_id' => $input->dispatchCompanyId, 'dispatch_company_code' => 'PARTNER-1', 'dispatch_company_name' => 'Partner One', 'dispatch_company_status' => 'active', 'start_date' => $input->startDate, 'end_date' => $input->endDate, 'created_at' => $createdAt, 'updated_at' => $updatedAt]; return $id; }
     public function update(int $id, DispatchContractInput $input, string $updatedAt): void {}
 }
 
@@ -123,8 +123,8 @@ final class DispatchHttpEmployeeRepository implements EmployeeRepositoryInterfac
 {
     /** @var array<int, array<string, mixed>> */
     private array $rows = [
-        1 => ['id' => 1, 'employee_code' => 'EMP-1', 'first_name' => 'Taro', 'last_name' => 'Yamada', 'employee_type' => 'dispatched'],
-        2 => ['id' => 2, 'employee_code' => 'EMP-2', 'first_name' => 'Hanako', 'last_name' => 'Sato', 'employee_type' => 'permanent'],
+        1 => ['id' => 1, 'employee_code' => 'EMP000001', 'first_name' => 'Taro', 'last_name' => 'Yamada', 'employee_type' => 'dispatched'],
+        2 => ['id' => 2, 'employee_code' => 'EMP000002', 'first_name' => 'Hanako', 'last_name' => 'Sato', 'employee_type' => 'permanent'],
     ];
     public function listBasic(int $limit): array { return array_values($this->rows); }
     public function findById(int $id): ?array { return $this->rows[$id] ?? null; }
