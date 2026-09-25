@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use App\Bootstrap\Configuration;
+use App\Bootstrap\EnvironmentLoader;
 use App\Database\ConnectionFactory;
 use App\Database\Migration\MigrationDiscovery;
 use App\Database\Migration\MigrationRunner;
@@ -20,6 +21,7 @@ if (!is_string($command) || !in_array($command, $commands, true)) {
 
 try {
     $projectRoot = dirname(__DIR__);
+    EnvironmentLoader::load($projectRoot);
     $configuration = Configuration::fromEnvironment($projectRoot . '/config/app.php');
     $connection = (new ConnectionFactory($configuration->database()))->create();
     $runner = new MigrationRunner(

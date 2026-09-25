@@ -44,18 +44,36 @@ PHPUnit is a development dependency used to verify the HTTP architecture. Tests 
 
 ## Configuration
 
-Phase 01 centralizes application configuration in `config/app.php`. Environment variables may override the safe local defaults through the bootstrap configuration boundary.
+Application configuration is defined in `config/app.php` and may be
+overridden by the process environment. At the web and migration entry points,
+the project loads an optional `.env` file from the project root using
+`vlucas/phpdotenv`. Existing environment variables supplied by the shell or
+runtime take precedence over values in `.env`.
 
-No dotenv package is installed in Phase 01. `.env.example` documents the expected variable names and safe local values, but PHP does not load `.env` automatically. For local development, either export variables in the shell before starting PHP or configure them in the web server environment. For example:
+Create the local file from the safe template and set local database values:
 
 ```sh
-export APP_ENV=local
-export APP_DEBUG=true
-export APP_URL=http://localhost:8000
-export APP_TIMEZONE=Asia/Tokyo
+cp .env.example .env
 ```
 
-Do not add real credentials to the repository. Database variables are documented in `.env.example`; PHP does not load that file automatically.
+For the local XAMPP/MySQL setup, `.env` should contain values equivalent to:
+
+```dotenv
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+APP_TIMEZONE=Asia/Tokyo
+
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=company_employee_management
+DB_USERNAME=root
+DB_PASSWORD=
+DB_CHARSET=utf8mb4
+```
+
+`.env` is ignored by Git. Do not add local credentials to the repository;
+`.env.example` is the committed template.
 
 ## Local development server
 
@@ -113,11 +131,40 @@ php bin/migrate migrate
 php bin/migrate rollback
 ```
 
+The normal local setup flow is:
+
+```sh
+cp .env.example .env
+# edit .env with local database credentials
+php bin/migrate status
+php bin/migrate migrate
+php -S localhost:8000 -t public
+```
+
 Migration classes are deterministic `VersionYYYYMMDDHHMMSSName` classes implementing `MigrationInterface`, and applied migrations are tracked in `schema_migrations`. The current domain migrations create companies, branches, departments, and employees in dependency order. They are applied only when `php bin/migrate migrate` is run; the HTTP application does not run them automatically.
 
 ### Database tests
 
-Unit tests do not require MySQL. Integration tests run only when `APP_ENV=test` and all `DB_TEST_*` variables are explicitly supplied. The test database name must end in `_test` and must be different from the normal application database. If those conditions are not met, integration tests are skipped or fail safely rather than guessing a database target.
+Unit tests do not require MySQL. Integration tests run only when `APP_ENV=test`
+and all `DB_TEST_*` variables are explicitly supplied. Use a separate test
+database, for example:
+
+```sh
+APP_ENV=test \
+DB_TEST_HOST=127.0.0.1 \
+DB_TEST_PORT=3306 \
+DB_TEST_DATABASE=company_employee_management_test \
+DB_TEST_USERNAME=root \
+DB_TEST_PASSWORD= \
+DB_TEST_CHARSET=utf8mb4 \
+composer test
+```
+
+The test database name must end in `_test` and must be different from the
+normal application database. Test configuration is passed explicitly and
+never falls back to `DB_DATABASE`. If the required values are not present,
+integration tests are skipped or fail safely rather than guessing a database
+target.
 
 The Phase 04 integration coverage checks the company/branch/department/employee schema, scoped uniqueness, required relationships, optional department assignment, cross-branch assignment rejection, deletion restrictions, check constraints, migration idempotency, and reverse-order rollback. The configured MySQL or MariaDB version must enforce `CHECK` constraints; use the integration suite to verify status and employee-type values are rejected by the actual test engine.
 
