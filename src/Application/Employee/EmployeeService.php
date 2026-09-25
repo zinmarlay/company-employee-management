@@ -7,6 +7,8 @@ namespace App\Application\Employee;
 use App\Application\DTO\EmployeeInput;
 use App\Application\Support\Clock;
 use App\Application\Validation\EmployeeInputValidator;
+use App\Application\Dispatch\ContractExpirationClassifier;
+use App\Domain\Dispatch\DispatchContractRepositoryInterface;
 use App\Domain\Employee\EmployeeDuplicateException;
 use App\Domain\Employee\EmployeeRepositoryInterface;
 use App\Domain\Organization\BranchReadRepositoryInterface;
@@ -22,6 +24,8 @@ final class EmployeeService
         private readonly DepartmentReadRepositoryInterface $departments,
         private readonly EmployeeInputValidator $validator,
         private readonly Clock $clock,
+        private readonly ?DispatchContractRepositoryInterface $dispatchContracts = null,
+        private readonly ?ContractExpirationClassifier $expiration = null,
     ) {
     }
 
@@ -34,7 +38,14 @@ final class EmployeeService
     /** @return array<string, mixed>|null */
     public function getEmployee(int $id): ?array
     {
-        return $this->employees->findById($id);
+        $employee = $this->employees->findById($id);
+        if ($employee === null) {
+            return null;
+        }
+
+        $employee['dispatch'] = $this->dispatchData($employee);
+
+        return $employee;
     }
 
     /** @return array<string, mixed> */
@@ -390,5 +401,43 @@ final class EmployeeService
         return $field === 'email'
             ? 'An employee with this email already exists.'
             : 'An employee with this code already exists.';
+    }
+
+    /** @param array<string, mixed> $employee @return array<string, mixed> */
+    private function dispatchData(array $employee): array
+    {
+        $empty = [
+            'is_dispatched' => false,
+            'dispatch_company' => null,
+            'current_contract' => null,
+            'contract_history' => [],
+        ];
+
+        if (($employee['employee_type'] ?? null) !== 'dispatched' || !$this->dispatchContracts instanceof DispatchContractRepositoryInterface) {
+            return $empty;
+        }
+
+        $classifier = $this->expiration ?? new ContractExpirationClassifier();
+        $history = array_map(function (array $contract) use ($classifier): array {
+            $contract['expiration_classification'] = $classifier->classify(
+                (string) $contract['end_date'],
+                $this->clock->nowUtc(),
+            );
+            return $contract;
+        }, $this->dispatchContracts->findHistoryByEmployeeId((int) $employee['id']));
+
+        $current = $history[0] ?? null;
+
+        return [
+            'is_dispatched' => true,
+            'dispatch_company' => $current === null ? null : [
+                'id' => $current['dispatch_company_id'],
+                'code' => $current['dispatch_company_code'],
+                'name' => $current['dispatch_company_name'],
+                'status' => $current['dispatch_company_status'],
+            ],
+            'current_contract' => $current,
+            'contract_history' => $history,
+        ];
     }
 }

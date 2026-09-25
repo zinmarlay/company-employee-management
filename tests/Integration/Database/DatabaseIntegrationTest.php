@@ -69,6 +69,8 @@ final class DatabaseIntegrationTest extends TestCase
     protected function tearDown(): void
     {
         if ($this->pdo instanceof PDO) {
+            $this->pdo->exec('DROP TABLE IF EXISTS dispatch_contracts');
+            $this->pdo->exec('DROP TABLE IF EXISTS dispatch_companies');
             $this->pdo->exec('DROP TABLE IF EXISTS employees');
             $this->pdo->exec('DROP TABLE IF EXISTS departments');
             $this->pdo->exec('DROP TABLE IF EXISTS branches');
@@ -129,13 +131,13 @@ final class DatabaseIntegrationTest extends TestCase
             new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'),
         );
 
-        self::assertSame(4, $runner->migrate());
+        self::assertSame(5, $runner->migrate());
         self::assertSame(0, $runner->migrate());
-        self::assertCount(4, $runner->status());
-        self::assertSame(4, (int) $this->pdo?->query(
+        self::assertCount(5, $runner->status());
+        self::assertSame(6, (int) $this->pdo?->query(
             "SELECT COUNT(*) FROM information_schema.tables "
             . "WHERE table_schema = DATABASE() AND table_name IN "
-            . "('companies', 'branches', 'departments', 'employees')",
+            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts')",
         )->fetchColumn());
 
         $suffix = bin2hex(random_bytes(4));
@@ -204,11 +206,11 @@ final class DatabaseIntegrationTest extends TestCase
             'DELETE FROM departments WHERE id = :id',
         )->execute(['id' => $tokyoDepartmentId]));
 
-        self::assertSame(4, $runner->rollback());
+        self::assertSame(5, $runner->rollback());
         self::assertSame(0, (int) $this->pdo?->query(
             "SELECT COUNT(*) FROM information_schema.tables "
             . "WHERE table_schema = DATABASE() AND table_name IN "
-            . "('companies', 'branches', 'departments', 'employees')",
+            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts')",
         )->fetchColumn());
     }
 
@@ -325,6 +327,8 @@ final class DatabaseIntegrationTest extends TestCase
 
     private function resetTestSchema(): void
     {
+        $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_contracts');
+        $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_companies');
         $this->pdo?->exec('DROP TABLE IF EXISTS employees');
         $this->pdo?->exec('DROP TABLE IF EXISTS departments');
         $this->pdo?->exec('DROP TABLE IF EXISTS branches');

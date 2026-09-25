@@ -19,8 +19,8 @@ $navigation = [
     ['key' => 'employees', 'labelKey' => 'navigation.employees', 'href' => '/employees', 'icon' => '●', 'available' => true],
     ['key' => 'branches', 'labelKey' => 'navigation.branches', 'href' => null, 'icon' => '⌖', 'available' => false],
     ['key' => 'departments', 'labelKey' => 'navigation.departments', 'href' => null, 'icon' => '▦', 'available' => false],
-    ['key' => 'dispatch-companies', 'labelKey' => 'navigation.dispatch_companies', 'href' => null, 'icon' => '▱', 'available' => false],
-    ['key' => 'dispatch-contracts', 'labelKey' => 'navigation.dispatch_contracts', 'href' => null, 'icon' => '▤', 'available' => false],
+    ['key' => 'dispatch-companies', 'labelKey' => 'navigation.dispatch_companies', 'href' => '/dispatch-companies', 'icon' => '▱', 'available' => true],
+    ['key' => 'dispatch-contracts', 'labelKey' => 'navigation.dispatch_contracts', 'href' => '/dispatch-contracts/create', 'icon' => '▤', 'available' => true],
 ];
 $localeUrl = static function (string $nextLocale) use ($currentPath): string {
     $separator = str_contains($currentPath, '?') ? '&' : '?';

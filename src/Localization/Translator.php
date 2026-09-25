@@ -67,6 +67,14 @@ final class Translator
             'Select an active department.' => 'validation.active_department',
             'An employee with this code already exists.' => 'validation.duplicate_code',
             'An employee with this email already exists.' => 'validation.duplicate_email',
+            'A dispatch company with this code already exists.' => 'validation.duplicate_dispatch_company_code',
+            'Select an existing employee.' => 'validation.existing_employee',
+            'Only dispatched employees can receive a dispatch contract.' => 'validation.dispatched_employee',
+            'Select an existing dispatch company.' => 'validation.existing_dispatch_company',
+            'Select an active dispatch company.' => 'validation.active_dispatch_company',
+            'Start date must be on or before end date.' => 'validation.date_order',
+            'End date must be on or after start date.' => 'validation.date_order_end',
+            'This contract overlaps an existing period.' => 'validation.contract_overlap',
         ];
 
         if (isset($directMessages[$message])) {

@@ -88,6 +88,22 @@ $fullName = ($employee['last_name'] ?? '') . ' ' . ($employee['first_name'] ?? '
         </article>
     </div>
 
+    <?php $dispatch = is_array($employee['dispatch'] ?? null) ? $employee['dispatch'] : ['is_dispatched' => false, 'current_contract' => null, 'contract_history' => []]; ?>
+    <?php if (($dispatch['is_dispatched'] ?? false) === true): ?>
+        <?php $history = is_array($dispatch['contract_history'] ?? null) ? $dispatch['contract_history'] : []; ?>
+        <article class="card detail-card dispatch-history-card">
+            <div class="card-header"><div><p class="eyebrow"><?= $escape($t('dispatch_contracts.directory')) ?></p><h2><?= $escape($t('dispatch_contracts.history')) ?></h2></div><a class="button button--primary" href="/dispatch-contracts/create?employee_id=<?= $id ?>"><?= $escape($t('actions.create_contract')) ?></a></div>
+            <?php if (is_array($dispatch['current_contract'] ?? null)): ?>
+                <?php $current = $dispatch['current_contract']; $currentClassification = (string) $current['expiration_classification']; $currentTone = $currentClassification === 'expired' ? 'danger' : ($currentClassification === 'normal' ? 'success' : 'warning'); ?>
+                <p class="muted-text"><?= $escape($t('dispatch_contracts.current_contract')) ?>: <a class="inline-link" href="/dispatch-contracts/<?= (int) $current['id'] ?>"><?= $escape($current['dispatch_company_name']) ?></a> · <?= $escape($current['start_date']) ?> → <?= $escape($current['end_date']) ?> <?php $chipLabelKey = 'status.' . $currentClassification; $chipTone = $currentTone; include __DIR__ . '/../partials/status-chip.php'; ?></p>
+            <?php endif; ?>
+            <?php if ($history === []): ?><p class="muted-text"><?= $escape($t('dispatch_contracts.no_history')) ?></p><?php else: ?>
+                <div class="table-scroll"><table class="data-table"><thead><tr><th><?= $escape($t('dispatch_contracts.dispatch_company')) ?></th><th><?= $escape($t('table.start_date')) ?></th><th><?= $escape($t('table.end_date')) ?></th><th><?= $escape($t('table.expiration')) ?></th><th><span class="visually-hidden"><?= $escape($t('table.actions')) ?></span></th></tr></thead><tbody>
+                <?php foreach ($history as $contract): ?><?php $classification = (string) $contract['expiration_classification']; $tone = $classification === 'expired' ? 'danger' : ($classification === 'normal' ? 'success' : 'warning'); ?><tr><td><?= $escape($contract['dispatch_company_name']) ?></td><td><?= $escape($contract['start_date']) ?></td><td><?= $escape($contract['end_date']) ?></td><td><?php $chipLabelKey = 'status.' . $classification; $chipTone = $tone; include __DIR__ . '/../partials/status-chip.php'; ?></td><td><div class="table-actions"><a class="button button--text button--small" href="/dispatch-contracts/<?= (int) $contract['id'] ?>"><?= $escape($t('actions.view_contract')) ?></a><a class="button button--text button--small" href="/dispatch-contracts/<?= (int) $contract['id'] ?>/renew"><?= $escape($t('actions.renew_contract')) ?></a></div></td></tr><?php endforeach; ?></tbody></table></div>
+            <?php endif; ?>
+        </article>
+    <?php endif; ?>
+
     <div class="detail-footer-actions">
         <?php if (($employee['status'] ?? null) === 'active'): ?>
             <a class="button button--danger" href="/employees/<?= $id ?>/deactivate"><?= $escape($t('actions.deactivate_employee')) ?></a>
