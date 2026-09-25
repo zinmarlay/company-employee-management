@@ -1,0 +1,41 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Application\Support\SystemClock;
+use App\Bootstrap\Configuration;
+use App\Bootstrap\EnvironmentLoader;
+use App\Database\ConnectionFactory;
+use App\Database\Seed\DevelopmentSeedSafety;
+use App\Database\Seed\DevelopmentSeeder;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+try {
+    $projectRoot = dirname(__DIR__);
+    EnvironmentLoader::load($projectRoot);
+    $configuration = Configuration::fromEnvironment($projectRoot . '/config/app.php');
+    $database = $configuration->database();
+    DevelopmentSeedSafety::assertAllowed($configuration->environment(), $database->database());
+
+    $result = (new DevelopmentSeeder(
+        (new ConnectionFactory($database))->create(),
+        new SystemClock(),
+    ))->seed();
+
+    fwrite(STDOUT, "Development seed complete.\n");
+    fwrite(STDOUT, sprintf(
+        "  companies=%d branches=%d departments=%d employees=%d dispatch_companies=%d dispatch_contracts=%d\n",
+        $result['companies'],
+        $result['branches'],
+        $result['departments'],
+        $result['employees'],
+        $result['dispatch_companies'],
+        $result['dispatch_contracts'],
+    ));
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Development seed failed: ' . $exception->getMessage() . "\n");
+    exit(1);
+}
