@@ -115,7 +115,7 @@ final class FakeDispatchCompanyRepository implements DispatchCompanyRepositoryIn
     public function listBasic(int $limit): array { return array_values($this->rows); }
     public function findById(int $id): ?array { return $this->rows[$id] ?? null; }
     public function insert(DispatchCompanyInput $input, string $createdAt, string $updatedAt): int { return 1; }
-    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): void {}
+    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): bool { return true; }
     public function deactivate(int $id, string $updatedAt): bool { return true; }
 
     /** @var array<int, array<string, mixed>> */

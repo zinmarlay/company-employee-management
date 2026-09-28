@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Persistence;
 
 use App\Application\DTO\DepartmentInput;
+use App\Application\DTO\DepartmentMetadataInput;
 use App\Database\LazyPdoConnection;
 use App\Domain\Organization\DepartmentDuplicateException;
 use App\Domain\Organization\DepartmentRepositoryInterface;
@@ -119,24 +120,19 @@ final class PdoDepartmentRepository implements DepartmentRepositoryInterface
         return (int) $this->connection->get()->lastInsertId();
     }
 
-    public function update(int $id, DepartmentInput $input, string $updatedAt): void
+    public function updateMetadata(int $id, DepartmentMetadataInput $input, string $updatedAt): bool
     {
         $statement = $this->connection->get()->prepare(
-            'UPDATE departments SET code = :code, name = :name, description = :description, updated_at = :updated_at WHERE id = :id',
+            "UPDATE departments SET description = :description, updated_at = :updated_at WHERE id = :id AND status = 'active'",
         );
 
-        try {
-            $statement->execute([
-                'id' => $id,
-                'code' => $input->code,
-                'name' => $input->name,
-                'description' => $input->description,
-                'updated_at' => $updatedAt,
-            ]);
-        } catch (PDOException $exception) {
-            $this->throwKnownDuplicate($exception);
-            throw $exception;
-        }
+        $statement->execute([
+            'id' => $id,
+            'description' => $input->description,
+            'updated_at' => $updatedAt,
+        ]);
+
+        return $statement->rowCount() > 0;
     }
 
     public function deactivate(int $id, string $updatedAt): bool

@@ -43,6 +43,12 @@ final class DispatchHttpTest extends TestCase
         $router = new Router();
         $router->get('/dispatch-companies/create', [$companyController, 'create']);
         $router->post('/dispatch-companies', [$companyController, 'store']);
+        $router->get('/dispatch-companies', [$companyController, 'index']);
+        $router->get('/dispatch-companies/{id}', [$companyController, 'show']);
+        $router->get('/dispatch-companies/{id}/edit', [$companyController, 'edit']);
+        $router->post('/dispatch-companies/{id}', [$companyController, 'update']);
+        $router->get('/dispatch-companies/{id}/deactivate', [$companyController, 'deactivateConfirmation']);
+        $router->post('/dispatch-companies/{id}/deactivate', [$companyController, 'deactivate']);
         $router->get('/dispatch-contracts/create', [$contractController, 'create']);
         $router->post('/dispatch-contracts', [$contractController, 'store']);
         $router->get('/dispatch-contracts/{id}', [$contractController, 'show']);
@@ -58,6 +64,27 @@ final class DispatchHttpTest extends TestCase
             'email' => 'partner@example.test',
         ]));
         self::assertSame(303, $companyCreated->statusCode());
+        $companyRepository->rows[2]['status'] = 'inactive';
+        $companyRepository->rows[2]['email'] = 'historical@example.test';
+        $companyList = $kernel->handle(Request::fromValues('GET', '/dispatch-companies'));
+        self::assertSame(200, $companyList->statusCode());
+        self::assertStringContainsString('New Partner', $companyList->body());
+        self::assertStringNotContainsString('/dispatch-companies/2/edit', $companyList->body());
+        self::assertStringNotContainsString('/dispatch-companies/2/deactivate', $companyList->body());
+        $inactiveCompanyDetail = $kernel->handle(Request::fromValues('GET', '/dispatch-companies/2'));
+        self::assertSame(200, $inactiveCompanyDetail->statusCode());
+        self::assertStringNotContainsString('/dispatch-companies/2/edit', $inactiveCompanyDetail->body());
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/dispatch-companies/2/edit'))->statusCode());
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/dispatch-companies/2/deactivate'))->statusCode());
+        self::assertSame(404, $kernel->handle(Request::fromValues('POST', '/dispatch-companies/2', [], [
+            'code' => 'FORGED',
+            'name' => 'Forged',
+            'email' => 'forged@example.test',
+        ]))->statusCode());
+        self::assertSame('New Partner', $companyRepository->rows[2]['name']);
+        self::assertSame('historical@example.test', $companyRepository->rows[2]['email']);
+        self::assertSame(303, $kernel->handle(Request::fromValues('POST', '/dispatch-companies/2/deactivate'))->statusCode());
+        self::assertSame('inactive', $companyRepository->rows[2]['status']);
 
         $invalid = $kernel->handle(Request::fromValues('POST', '/dispatch-contracts', [], [
             'employee_id' => '2',
@@ -102,7 +129,7 @@ final class DispatchHttpCompanyRepository implements DispatchCompanyRepositoryIn
     public function listBasic(int $limit): array { return array_values($this->rows); }
     public function findById(int $id): ?array { return $this->rows[$id] ?? null; }
     public function insert(DispatchCompanyInput $input, string $createdAt, string $updatedAt): int { $id = count($this->rows) + 1; $this->rows[$id] = ['id' => $id, 'code' => $input->code, 'name' => $input->name, 'phone' => $input->phone, 'email' => $input->email, 'address' => $input->address, 'status' => 'active', 'created_at' => $createdAt, 'updated_at' => $updatedAt]; return $id; }
-    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): void { $this->rows[$id] = array_merge($this->rows[$id], ['code' => $input->code, 'name' => $input->name, 'phone' => $input->phone, 'email' => $input->email, 'address' => $input->address, 'updated_at' => $updatedAt]); }
+    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): bool { if (($this->rows[$id]['status'] ?? '') !== 'active') return false; $this->rows[$id] = array_merge($this->rows[$id], ['code' => $input->code, 'name' => $input->name, 'phone' => $input->phone, 'email' => $input->email, 'address' => $input->address, 'updated_at' => $updatedAt]); return true; }
     public function deactivate(int $id, string $updatedAt): bool { $this->rows[$id]['status'] = 'inactive'; return true; }
 }
 

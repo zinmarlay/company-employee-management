@@ -10,6 +10,7 @@ use App\Database\ConnectionFactory;
 use App\Database\Seed\DevelopmentSeedSafety;
 use App\Database\Seed\DevelopmentSeeder;
 use App\Domain\Organization\PrefectureCatalog;
+use App\Domain\Organization\DepartmentCatalog;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -24,6 +25,7 @@ try {
         (new ConnectionFactory($database))->create(),
         new SystemClock(),
         new PrefectureCatalog(),
+        new DepartmentCatalog(),
     ))->seed();
 
     fwrite(STDOUT, "Development seed complete.\n");

@@ -45,12 +45,13 @@ final class OrganizationInputValidatorTest extends TestCase
     {
         $result = (new DepartmentInputValidator())->validate([
             'branch_id' => '2',
-            'code' => 'DEV',
-            'name' => '開発部',
+            'department_code' => ' dev ',
+            'name' => 'HACKED',
             'description' => '  ',
         ]);
 
         self::assertTrue($result->isValid());
+        self::assertSame('dev', $result->input?->departmentCode);
         self::assertNull($result->input?->description);
     }
 
@@ -58,12 +59,13 @@ final class OrganizationInputValidatorTest extends TestCase
     {
         $result = (new DepartmentInputValidator())->validate([
             'branch_id' => '2',
-            'code' => 'DEV',
+            'department_code' => ['DEV'],
             'name' => 'Development',
             'description' => ['unexpected'],
         ]);
 
         self::assertFalse($result->isValid());
+        self::assertSame('This field is required.', $result->errors['department_code']);
         self::assertSame('Enter a text value.', $result->errors['description']);
     }
 }

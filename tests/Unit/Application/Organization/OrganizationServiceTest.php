@@ -7,6 +7,7 @@ namespace Tests\Unit\Application\Organization;
 use App\Application\DTO\BranchInput;
 use App\Application\DTO\BranchMetadataInput;
 use App\Application\DTO\DepartmentInput;
+use App\Application\DTO\DepartmentMetadataInput;
 use App\Application\Organization\BranchService;
 use App\Application\Organization\DepartmentService;
 use App\Application\Support\Clock;
@@ -45,14 +46,65 @@ final class OrganizationServiceTest extends TestCase
 
         $result = $service->createDepartment([
             'branch_id' => '2',
-            'code' => 'NEW',
-            'name' => 'New department',
+            'department_code' => 'DEV',
+            'name' => 'HACKED',
             'description' => '',
         ]);
 
         self::assertFalse($result['success']);
         self::assertSame('Select an active branch.', $result['errors']['branch_id']);
         self::assertCount(1, $departments->rows);
+    }
+
+    public function testDepartmentCreateDerivesNameAndRejectsDuplicateInactiveType(): void
+    {
+        $departments = new OrganizationDepartmentRepositoryFake();
+        $branches = new OrganizationBranchRepositoryFake();
+        $departments->rows[1]['status'] = 'inactive';
+        $service = new DepartmentService($departments, $branches, new DepartmentInputValidator(), new OrganizationClock());
+
+        $duplicate = $service->createDepartment([
+            'branch_id' => '1',
+            'department_code' => 'DEV',
+            'name' => 'HACKED',
+            'description' => 'Duplicate',
+        ]);
+        self::assertFalse($duplicate['success']);
+        self::assertArrayHasKey('department_code', $duplicate['errors']);
+
+        $created = $service->createDepartment([
+            'branch_id' => '1',
+            'department_code' => 'HR',
+            'name' => 'HACKED',
+            'description' => 'People operations',
+        ]);
+        self::assertTrue($created['success']);
+        self::assertSame('HR', $departments->rows[$created['id']]['code']);
+        self::assertSame('人事部', $departments->rows[$created['id']]['name']);
+    }
+
+    public function testInactiveDepartmentUpdateIsRejectedWithoutMutation(): void
+    {
+        $departments = new OrganizationDepartmentRepositoryFake();
+        $branches = new OrganizationBranchRepositoryFake();
+        $departments->rows[1]['status'] = 'inactive';
+        $service = new DepartmentService($departments, $branches, new DepartmentInputValidator(), new OrganizationClock());
+
+        $result = $service->updateDepartment(1, [
+            'branch_id' => '2',
+            'department_code' => 'SALES',
+            'code' => 'FORGED',
+            'name' => 'HACKED',
+            'status' => 'active',
+            'description' => 'Corrected description',
+        ]);
+
+        self::assertFalse($result['success']);
+        self::assertSame(1, $departments->rows[1]['branch_id']);
+        self::assertSame('DEV', $departments->rows[1]['code']);
+        self::assertSame('Development', $departments->rows[1]['name']);
+        self::assertSame('inactive', $departments->rows[1]['status']);
+        self::assertNull($departments->rows[1]['description']);
     }
 
     public function testInactiveBranchStillBlocksTheSamePrefecture(): void
@@ -99,8 +151,8 @@ final class OrganizationServiceTest extends TestCase
         self::assertSame('deactivated', $branchService->deactivateBranch(1)['status']);
         self::assertSame('active', $departments->rows[1]['status']);
         self::assertSame('already-inactive', $branchService->deactivateBranch(1)['status']);
-        self::assertSame('deactivated', $departmentService->deactivateDepartment(1)['status']);
-        self::assertSame('already-inactive', $departmentService->deactivateDepartment(1)['status']);
+        self::assertSame('parent-inactive', $departmentService->deactivateDepartment(1)['status']);
+        self::assertSame('parent-inactive', $departmentService->deactivateDepartment(1)['status']);
     }
 
     /** @param array<string, mixed> $overrides @return array<string, mixed> */
@@ -140,7 +192,7 @@ final class OrganizationBranchRepositoryFake implements BranchRepositoryInterfac
     public function codeExists(int $companyId, string $code, ?int $exceptId = null): bool { foreach ($this->rows as $id => $row) if ($id !== $exceptId && $row['company_id'] === $companyId && $row['code'] === $code) return true; return false; }
     public function insert(BranchInput $input, string $createdAt, string $updatedAt): int { $id = max(array_keys($this->rows)) + 1; $this->rows[$id] = ['id' => $id, 'company_id' => $input->companyId, 'code' => $input->code, 'name' => $input->name, 'city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'status' => 'active', 'created_at' => $createdAt, 'updated_at' => $updatedAt]; return $id; }
     public function update(int $id, BranchInput $input, string $updatedAt): void { $this->rows[$id] = array_merge($this->rows[$id], ['code' => $input->code, 'name' => $input->name, 'city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'updated_at' => $updatedAt]); }
-    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): void { $this->rows[$id] = array_merge($this->rows[$id], ['city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'updated_at' => $updatedAt]); }
+    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): bool { if (($this->rows[$id]['status'] ?? '') !== 'active') return false; $this->rows[$id] = array_merge($this->rows[$id], ['city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'updated_at' => $updatedAt]); return true; }
     public function deactivate(int $id, string $updatedAt): bool { if ($this->rows[$id]['status'] !== 'active') return false; $this->rows[$id]['status'] = 'inactive'; return true; }
 }
 
@@ -156,5 +208,6 @@ final class OrganizationDepartmentRepositoryFake implements DepartmentRepository
     public function codeExists(int $branchId, string $code, ?int $exceptId = null): bool { foreach ($this->rows as $id => $row) if ($id !== $exceptId && $row['branch_id'] === $branchId && $row['code'] === $code) return true; return false; }
     public function insert(DepartmentInput $input, string $createdAt, string $updatedAt): int { $id = max(array_keys($this->rows)) + 1; $this->rows[$id] = ['id' => $id, 'branch_id' => $input->branchId, 'code' => $input->code, 'name' => $input->name, 'description' => $input->description, 'status' => 'active']; return $id; }
     public function update(int $id, DepartmentInput $input, string $updatedAt): void { $this->rows[$id] = array_merge($this->rows[$id], ['code' => $input->code, 'name' => $input->name, 'description' => $input->description]); }
+    public function updateMetadata(int $id, DepartmentMetadataInput $input, string $updatedAt): bool { if (($this->rows[$id]['status'] ?? '') !== 'active') return false; $this->rows[$id] = array_merge($this->rows[$id], ['description' => $input->description]); return true; }
     public function deactivate(int $id, string $updatedAt): bool { if ($this->rows[$id]['status'] !== 'active') return false; $this->rows[$id]['status'] = 'inactive'; return true; }
 }

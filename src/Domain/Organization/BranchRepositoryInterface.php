@@ -28,7 +28,7 @@ interface BranchRepositoryInterface
 
     public function insert(BranchInput $input, string $createdAt, string $updatedAt): int;
 
-    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): void;
+    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): bool;
 
     public function deactivate(int $id, string $updatedAt): bool;
 }

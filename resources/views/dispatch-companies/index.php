@@ -61,8 +61,7 @@ $escape = static fn (mixed $value): string => HtmlEscaper::escape($value);
                             <td data-label="<?= $escape($t('table.status')) ?>"><?php $chipLabelKey = $active ? 'status.active' : 'status.inactive'; $chipTone = $active ? 'success' : 'neutral'; include __DIR__ . '/../partials/status-chip.php'; ?></td>
                             <td data-label="<?= $escape($t('table.actions')) ?>"><div class="table-actions">
                                 <a class="button button--text button--small" href="/dispatch-companies/<?= $id ?>"><?= $escape($t('actions.view')) ?></a>
-                                <a class="button button--text button--small" href="/dispatch-companies/<?= $id ?>/edit"><?= $escape($t('actions.edit')) ?></a>
-                                <?php if ($active): ?><a class="button button--text button--small button--danger-text" href="/dispatch-companies/<?= $id ?>/deactivate"><?= $escape($t('actions.deactivate')) ?></a><?php endif; ?>
+                                <?php if ($active): ?><a class="button button--text button--small" href="/dispatch-companies/<?= $id ?>/edit"><?= $escape($t('actions.edit')) ?></a><a class="button button--text button--small button--danger-text" href="/dispatch-companies/<?= $id ?>/deactivate"><?= $escape($t('actions.deactivate')) ?></a><?php endif; ?>
                             </div></td>
                         </tr>
                     <?php endforeach; ?>

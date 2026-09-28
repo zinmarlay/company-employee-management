@@ -69,11 +69,11 @@ final class PdoDispatchCompanyRepository implements DispatchCompanyRepositoryInt
         return (int) $this->connection->get()->lastInsertId();
     }
 
-    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): void
+    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): bool
     {
         $statement = $this->connection->get()->prepare(
             'UPDATE dispatch_companies SET code = :code, name = :name, phone = :phone, '
-            . 'email = :email, address = :address, updated_at = :updated_at WHERE id = :id',
+            . "email = :email, address = :address, updated_at = :updated_at WHERE id = :id AND status = 'active'",
         );
 
         try {
@@ -90,6 +90,8 @@ final class PdoDispatchCompanyRepository implements DispatchCompanyRepositoryInt
             $this->throwKnownDuplicate($exception);
             throw $exception;
         }
+
+        return $statement->rowCount() > 0;
     }
 
     public function deactivate(int $id, string $updatedAt): bool

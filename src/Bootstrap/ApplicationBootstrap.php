@@ -17,6 +17,7 @@ use App\Application\Validation\BranchInputValidator;
 use App\Application\Validation\DepartmentInputValidator;
 use App\Application\Validation\EmployeeInputValidator;
 use App\Domain\Organization\PrefectureCatalog;
+use App\Domain\Organization\DepartmentCatalog;
 use App\Database\LazyPdoConnection;
 use App\Http\ExceptionResponder;
 use App\Http\HttpKernel;
@@ -70,7 +71,7 @@ final class ApplicationBootstrap
         );
         $employeeController = new EmployeeController($viewRenderer, $employeeService, $configuration);
         $branchService = new BranchService($branches, $departments, new BranchInputValidator(), $clock, new PrefectureCatalog());
-        $departmentService = new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock);
+        $departmentService = new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock, new DepartmentCatalog());
         $dispatchCompanyService = new DispatchCompanyService(
             $dispatchCompanies,
             $dispatchContracts,

@@ -6,6 +6,7 @@ namespace App\Database\Seed;
 
 use App\Application\Support\Clock;
 use App\Domain\Organization\PrefectureCatalog;
+use App\Domain\Organization\DepartmentCatalog;
 use PDO;
 use Throwable;
 
@@ -29,6 +30,7 @@ final class DevelopmentSeeder
         private readonly PDO $pdo,
         private readonly Clock $clock,
         private readonly ?PrefectureCatalog $prefectures = null,
+        private readonly ?DepartmentCatalog $departmentCatalog = null,
     ) {
     }
 
@@ -181,12 +183,18 @@ final class DevelopmentSeeder
     private function upsertDepartments(string $timestamp): void
     {
         $departments = [
-            'TOKYO:DEV' => [$this->branchIds['TOKYO'], 'DEV', '開発部'],
-            'TOKYO:SALES' => [$this->branchIds['TOKYO'], 'SALES', '営業部'],
-            'OSAKA:DEV' => [$this->branchIds['OSAKA'], 'DEV', '開発部'],
+            'TOKYO:DEV' => [$this->branchIds['TOKYO'], 'DEV'],
+            'TOKYO:SALES' => [$this->branchIds['TOKYO'], 'SALES'],
+            'OSAKA:DEV' => [$this->branchIds['OSAKA'], 'DEV'],
         ];
 
-        foreach ($departments as $key => [$branchId, $code, $name]) {
+        $catalog = $this->departmentCatalog ?? new DepartmentCatalog();
+        foreach ($departments as $key => [$branchId, $code]) {
+            $department = $catalog->find($code);
+            if ($department === null) {
+                throw new DevelopmentSeedException('Seed department code is not present in the department catalog: ' . $code);
+            }
+            $name = $department['name'];
             $existing = $this->fetchOne(
                 'SELECT id, code, name, status FROM departments '
                 . 'WHERE branch_id = :branch_id AND code = :code',

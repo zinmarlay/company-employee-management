@@ -66,6 +66,9 @@ final class BranchService
         if ($branch === null) {
             return null;
         }
+        if ((string) ($branch['status'] ?? '') !== 'active') {
+            return null;
+        }
 
         $branch = $this->decorateBranch($branch);
         return $this->formData([
@@ -131,7 +134,12 @@ final class BranchService
             return $this->failure($id, $values, $validation->errors);
         }
 
-        $this->branches->updateMetadata($id, $validation->input, $this->now());
+        if ((string) ($current['status'] ?? '') !== 'active') {
+            return $this->failure(null, [], []);
+        }
+        if (!$this->branches->updateMetadata($id, $validation->input, $this->now())) {
+            return $this->failure(null, [], []);
+        }
 
         return ['success' => true, 'id' => $id, 'values' => $values, 'errors' => []];
     }
@@ -139,7 +147,8 @@ final class BranchService
     /** @return array<string, mixed>|null */
     public function deactivationForm(int $id): ?array
     {
-        return $this->branches->findById($id);
+        $branch = $this->branches->findById($id);
+        return $branch !== null && (string) ($branch['status'] ?? '') === 'active' ? $branch : null;
     }
 
     /** @return array{status: string, branch: array<string, mixed>|null} */

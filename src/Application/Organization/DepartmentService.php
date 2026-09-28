@@ -10,23 +10,28 @@ use App\Application\Validation\DepartmentInputValidator;
 use App\Domain\Organization\BranchRepositoryInterface;
 use App\Domain\Organization\DepartmentDuplicateException;
 use App\Domain\Organization\DepartmentRepositoryInterface;
+use App\Domain\Organization\DepartmentCatalog;
 
 final class DepartmentService
 {
     private const LIST_LIMIT = 200;
+
+    private readonly DepartmentCatalog $catalog;
 
     public function __construct(
         private readonly DepartmentRepositoryInterface $departments,
         private readonly BranchRepositoryInterface $branches,
         private readonly DepartmentInputValidator $validator,
         private readonly Clock $clock,
+        ?DepartmentCatalog $catalog = null,
     ) {
+        $this->catalog = $catalog ?? new DepartmentCatalog();
     }
 
     /** @return array<int, array<string, mixed>> */
     public function listDepartments(): array
     {
-        return $this->departments->listManagement(self::LIST_LIMIT);
+        return array_map(fn (array $department): array => $this->decorateDepartment($department), $this->departments->listManagement(self::LIST_LIMIT));
     }
 
     /** @return array<string, mixed>|null */
@@ -37,6 +42,7 @@ final class DepartmentService
             return null;
         }
 
+        $department = $this->decorateDepartment($department);
         $department['employees'] = $this->departments->listEmployeesByDepartment($id);
         return $department;
     }
@@ -44,7 +50,11 @@ final class DepartmentService
     /** @return array<string, mixed> */
     public function createForm(): array
     {
-        return $this->formData(['branch_id' => '', 'code' => '', 'name' => '', 'description' => ''], [], null);
+        return $this->formData([
+            'branch_id' => '',
+            'department_code' => '',
+            'description' => '',
+        ], [], null);
     }
 
     /** @return array<string, mixed>|null */
@@ -54,9 +64,14 @@ final class DepartmentService
         if ($department === null) {
             return null;
         }
+        if (!$this->canManage($department)) {
+            return null;
+        }
 
+        $department = $this->decorateDepartment($department);
         return $this->formData([
             'branch_id' => (int) $department['branch_id'],
+            'department_code' => (string) $department['code'],
             'code' => (string) $department['code'],
             'name' => (string) $department['name'],
             'description' => $department['description'] ?? '',
@@ -71,16 +86,29 @@ final class DepartmentService
             return $this->failure(null, $validation->values, $validation->errors);
         }
 
-        $errors = $this->businessErrors($validation->input, null, null);
+        $input = $validation->input;
+        $department = $this->catalog->find($input->departmentCode);
+        if ($department === null) {
+            return $this->failure(null, $validation->values, ['department_code' => 'Select a supported department type.']);
+        }
+
+        $errors = $this->businessErrors($input->branchId, $department['code'], null);
         if ($errors !== []) {
             return $this->failure(null, $validation->values, $errors);
         }
 
+        $canonical = new DepartmentInput(
+            $input->branchId,
+            $department['code'],
+            $department['name'],
+            $input->description,
+        );
+
         try {
             $now = $this->now();
-            $id = $this->departments->insert($validation->input, $now, $now);
+            $id = $this->departments->insert($canonical, $now, $now);
         } catch (DepartmentDuplicateException) {
-            return $this->failure(null, $validation->values, ['code' => 'A department with this code already exists for the selected branch.']);
+            return $this->failure(null, $validation->values, ['department_code' => 'A department of this type already exists for the selected branch.']);
         }
 
         return ['success' => true, 'id' => $id, 'values' => $validation->values, 'errors' => []];
@@ -94,29 +122,27 @@ final class DepartmentService
             return $this->failure(null, [], []);
         }
 
-        $validation = $this->validator->validate($rawInput);
+        $validation = $this->validator->validateMetadata($rawInput);
+        $values = $this->editValues($current, $validation->values);
         if (!$validation->isValid()) {
-            return $this->failure($id, $validation->values, $validation->errors);
+            return $this->failure($id, $values, $validation->errors);
         }
 
-        $errors = $this->businessErrors($validation->input, $id, $current);
-        if ($errors !== []) {
-            return $this->failure($id, $validation->values, $errors);
+        if (!$this->canManage($current)) {
+            return $this->failure(null, [], []);
+        }
+        if (!$this->departments->updateMetadata($id, $validation->input, $this->now())) {
+            return $this->failure(null, [], []);
         }
 
-        try {
-            $this->departments->update($id, $validation->input, $this->now());
-        } catch (DepartmentDuplicateException) {
-            return $this->failure($id, $validation->values, ['code' => 'A department with this code already exists for the selected branch.']);
-        }
-
-        return ['success' => true, 'id' => $id, 'values' => $validation->values, 'errors' => []];
+        return ['success' => true, 'id' => $id, 'values' => $values, 'errors' => []];
     }
 
     /** @return array<string, mixed>|null */
     public function deactivationForm(int $id): ?array
     {
-        return $this->departments->findById($id);
+        $department = $this->departments->findById($id);
+        return $department !== null && $this->canManage($department) ? $department : null;
     }
 
     /** @return array{status: string, department: array<string, mixed>|null} */
@@ -128,6 +154,9 @@ final class DepartmentService
         }
         if ((string) $department['status'] !== 'active') {
             return ['status' => 'already-inactive', 'department' => $department];
+        }
+        if (!$this->parentBranchIsActive($department)) {
+            return ['status' => 'parent-inactive', 'department' => $department];
         }
 
         $this->departments->deactivate($id, $this->now());
@@ -153,7 +182,34 @@ final class DepartmentService
             (int) ($right['id'] ?? 0),
         ]);
 
-        return ['values' => $values, 'errors' => $errors, 'branches' => $branches, 'department' => $department];
+        return [
+            'values' => $values,
+            'errors' => $errors,
+            'branches' => $branches,
+            'departmentTypes' => $this->catalog->all(),
+            'department' => $department,
+        ];
+    }
+
+    /** @param array<string, mixed> $current @param array<string, mixed> $metadata */
+    private function editValues(array $current, array $metadata): array
+    {
+        return [
+            'branch_id' => (int) $current['branch_id'],
+            'department_code' => (string) $current['code'],
+            'code' => (string) $current['code'],
+            'name' => (string) $current['name'],
+            'description' => $metadata['description'] ?? ($current['description'] ?? ''),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function decorateDepartment(array $department): array
+    {
+        $catalog = $this->catalog->find((string) ($department['code'] ?? ''));
+        $department['department_label_ja'] = $catalog['name'] ?? null;
+        $department['department_label_en'] = $catalog['label_en'] ?? null;
+        return $department;
     }
 
     /** @return array{success: bool, id: int|null, values: array<string, mixed>, errors: array<string, string>} */
@@ -163,22 +219,18 @@ final class DepartmentService
     }
 
     /** @return array<string, string> */
-    private function businessErrors(DepartmentInput $input, ?int $exceptId, ?array $current): array
+    private function businessErrors(int $branchId, string $code, ?int $exceptId): array
     {
         $errors = [];
-        $branch = $this->branches->findById($input->branchId);
+        $branch = $this->branches->findById($branchId);
         if ($branch === null) {
             $errors['branch_id'] = 'Select an existing branch.';
-        } elseif ($current === null && (string) $branch['status'] !== 'active') {
+        } elseif ((string) $branch['status'] !== 'active') {
             $errors['branch_id'] = 'Select an active branch.';
         }
 
-        if ($current !== null && (int) $current['branch_id'] !== $input->branchId) {
-            $errors['branch_id'] = 'The department branch cannot be changed.';
-        }
-
-        if ($this->departments->codeExists($input->branchId, $input->code, $exceptId)) {
-            $errors['code'] = 'A department with this code already exists for the selected branch.';
+        if ($this->departments->codeExists($branchId, $code, $exceptId)) {
+            $errors['department_code'] = 'A department of this type already exists for the selected branch.';
         }
 
         return $errors;
@@ -193,6 +245,20 @@ final class DepartmentService
         }
 
         return false;
+    }
+
+    /** @param array<string, mixed> $department */
+    private function canManage(array $department): bool
+    {
+        return (string) ($department['status'] ?? '') === 'active'
+            && $this->parentBranchIsActive($department);
+    }
+
+    /** @param array<string, mixed> $department */
+    private function parentBranchIsActive(array $department): bool
+    {
+        $branch = $this->branches->findById((int) ($department['branch_id'] ?? 0));
+        return $branch !== null && (string) ($branch['status'] ?? '') === 'active';
     }
 
     private function now(): string

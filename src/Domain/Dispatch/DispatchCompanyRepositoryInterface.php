@@ -16,7 +16,7 @@ interface DispatchCompanyRepositoryInterface
 
     public function insert(DispatchCompanyInput $input, string $createdAt, string $updatedAt): int;
 
-    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): void;
+    public function update(int $id, DispatchCompanyInput $input, string $updatedAt): bool;
 
     public function deactivate(int $id, string $updatedAt): bool;
 }

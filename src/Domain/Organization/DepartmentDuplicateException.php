@@ -10,6 +10,6 @@ final class DepartmentDuplicateException extends RuntimeException
 {
     public function __construct(int $code = 0, ?\Throwable $previous = null)
     {
-        parent::__construct('A department with this code already exists for the selected branch.', $code, $previous);
+        parent::__construct('A department of this type already exists for the selected branch.', $code, $previous);
     }
 }

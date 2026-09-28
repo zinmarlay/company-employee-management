@@ -7,6 +7,7 @@ namespace Tests\Feature\Http;
 use App\Application\DTO\BranchInput;
 use App\Application\DTO\BranchMetadataInput;
 use App\Application\DTO\DepartmentInput;
+use App\Application\DTO\DepartmentMetadataInput;
 use App\Application\Organization\BranchService;
 use App\Application\Organization\DepartmentService;
 use App\Application\Support\Clock;
@@ -47,6 +48,10 @@ final class OrganizationHttpTest extends TestCase
         $router->get('/departments', [$departmentController, 'index']);
         $router->get('/departments/create', [$departmentController, 'create']);
         $router->post('/departments', [$departmentController, 'store']);
+        $router->get('/departments/{id}/edit', [$departmentController, 'edit']);
+        $router->post('/departments/{id}', [$departmentController, 'update']);
+        $router->get('/departments/{id}/deactivate', [$departmentController, 'deactivateConfirmation']);
+        $router->post('/departments/{id}/deactivate', [$departmentController, 'deactivate']);
         $router->get('/departments/{id}', [$departmentController, 'show']);
         $kernel = new HttpKernel($router, [], new ExceptionResponder(false));
 
@@ -76,11 +81,8 @@ final class OrganizationHttpTest extends TestCase
         self::assertSame('大阪支店', $branches->rows[2]['name']);
         $branches->rows[2]['status'] = 'inactive';
 
-        $edit = $kernel->handle(Request::fromValues('GET', '/branches/2/edit'));
-        self::assertSame(200, $edit->statusCode());
-        self::assertStringContainsString('大阪支店', $edit->body());
-        self::assertStringNotContainsString('name="code"', $edit->body());
-        self::assertSame(303, $kernel->handle(Request::fromValues('POST', '/branches/2', [], [
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/branches/2/edit'))->statusCode());
+        self::assertSame(404, $kernel->handle(Request::fromValues('POST', '/branches/2', [], [
             'company_id' => '999',
             'prefecture_code' => 'TOKYO',
             'code' => 'FORGED',
@@ -91,16 +93,88 @@ final class OrganizationHttpTest extends TestCase
         ]))->statusCode());
         self::assertSame('OSAKA', $branches->rows[2]['code']);
         self::assertSame('大阪支店', $branches->rows[2]['name']);
-        self::assertSame('大阪市中央区', $branches->rows[2]['city']);
+        self::assertSame('大阪市北区', $branches->rows[2]['city']);
+        $inactiveBranchList = $kernel->handle(Request::fromValues('GET', '/branches'));
+        self::assertStringNotContainsString('/branches/2/edit', $inactiveBranchList->body());
+        self::assertStringNotContainsString('/branches/2/deactivate', $inactiveBranchList->body());
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/branches/2/edit'))->statusCode());
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/branches/2/deactivate'))->statusCode());
+        $inactiveBranchDetail = $kernel->handle(Request::fromValues('GET', '/branches/2'));
+        self::assertSame(200, $inactiveBranchDetail->statusCode());
+        self::assertStringNotContainsString('/branches/2/edit', $inactiveBranchDetail->body());
+        self::assertStringNotContainsString('/departments/create', $inactiveBranchDetail->body());
+        self::assertSame(404, $kernel->handle(Request::fromValues('POST', '/branches/2', [], [
+            'city' => 'Forged city',
+            'address' => 'Forged address',
+            'phone' => '06-9999-9999',
+        ]))->statusCode());
+        self::assertSame('大阪市北区', $branches->rows[2]['city']);
+        self::assertSame('Osaka address', $branches->rows[2]['address']);
 
         $departmentForm = $kernel->handle(Request::fromValues('GET', '/departments/create'));
         self::assertSame(200, $departmentForm->statusCode());
         self::assertStringContainsString('Create department', $departmentForm->body());
+        self::assertSame(1, substr_count($departmentForm->body(), 'name="department_code"'));
+        self::assertStringContainsString('value="DEV"', $departmentForm->body());
+        self::assertStringNotContainsString('name="code"', $departmentForm->body());
+        self::assertStringNotContainsString('name="name"', $departmentForm->body());
+
+        $createdDepartment = $kernel->handle(Request::fromValues('POST', '/departments', [], [
+            'branch_id' => '1',
+            'department_code' => 'HR',
+            'name' => 'HACKED',
+            'description' => 'People operations',
+        ]));
+        self::assertSame(303, $createdDepartment->statusCode());
+        self::assertSame('/departments/2', $createdDepartment->header('Location'));
+        self::assertSame('HR', $departments->rows[2]['code']);
+        self::assertSame('人事部', $departments->rows[2]['name']);
+
+        $departmentEdit = $kernel->handle(Request::fromValues('GET', '/departments/2/edit'));
+        self::assertSame(200, $departmentEdit->statusCode());
+        self::assertStringContainsString('人事部', $departmentEdit->body());
+        self::assertStringNotContainsString('name="code"', $departmentEdit->body());
+        self::assertSame(303, $kernel->handle(Request::fromValues('POST', '/departments/2', [], [
+            'branch_id' => '999',
+            'department_code' => 'DEV',
+            'code' => 'FORGED',
+            'name' => 'HACKED',
+            'status' => 'inactive',
+            'description' => 'Updated description',
+        ]))->statusCode());
+        self::assertSame('HR', $departments->rows[2]['code']);
+        self::assertSame('人事部', $departments->rows[2]['name']);
+        self::assertSame('active', $departments->rows[2]['status']);
+        self::assertSame('Updated description', $departments->rows[2]['description']);
+        $departments->rows[2]['status'] = 'inactive';
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/departments/2/edit'))->statusCode());
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/departments/2/deactivate'))->statusCode());
+        self::assertSame(200, $kernel->handle(Request::fromValues('GET', '/departments/2'))->statusCode());
+        self::assertSame(404, $kernel->handle(Request::fromValues('POST', '/departments/2', [], [
+            'description' => 'Forged inactive update',
+        ]))->statusCode());
+        self::assertSame('Updated description', $departments->rows[2]['description']);
+        $inactiveDepartmentList = $kernel->handle(Request::fromValues('GET', '/departments'));
+        self::assertStringNotContainsString('/departments/2/edit', $inactiveDepartmentList->body());
+        self::assertStringNotContainsString('/departments/2/deactivate', $inactiveDepartmentList->body());
+        self::assertSame(303, $kernel->handle(Request::fromValues('POST', '/departments/2/deactivate'))->statusCode());
+        self::assertSame('inactive', $departments->rows[2]['status']);
+
+        $departments->rows[2]['status'] = 'active';
+        $departments->rows[2]['branch_id'] = 2;
+        $departments->rows[2]['branch_code'] = 'OSAKA';
+        $departments->rows[2]['branch_name'] = '大阪支店';
+        $departments->rows[2]['branch_status'] = 'inactive';
+        self::assertSame(404, $kernel->handle(Request::fromValues('GET', '/departments/2/edit'))->statusCode());
+        self::assertSame(404, $kernel->handle(Request::fromValues('POST', '/departments/2', [], [
+            'description' => 'Forged parent-inactive update',
+        ]))->statusCode());
+        self::assertSame('Updated description', $departments->rows[2]['description']);
 
         $invalidDepartment = $kernel->handle(Request::fromValues('POST', '/departments', [], [
             'branch_id' => '2',
-            'code' => 'SALES',
-            'name' => 'Sales',
+            'department_code' => 'DEV',
+            'name' => 'HACKED',
             'description' => '',
         ]));
         self::assertSame(422, $invalidDepartment->statusCode());
@@ -132,7 +206,7 @@ final class OrganizationHttpBranchRepository implements BranchRepositoryInterfac
     public function codeExists(int $companyId, string $code, ?int $exceptId = null): bool { foreach ($this->rows as $id => $row) if ($id !== $exceptId && $row['company_id'] === $companyId && $row['code'] === $code) return true; return false; }
     public function insert(BranchInput $input, string $createdAt, string $updatedAt): int { $id = max(array_keys($this->rows)) + 1; $this->rows[$id] = ['id' => $id, 'company_id' => $input->companyId, 'code' => $input->code, 'name' => $input->name, 'city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'status' => 'active', 'company_code' => 'COMPANY', 'company_name' => 'Company', 'department_count' => 0, 'employee_count' => 0, 'created_at' => $createdAt, 'updated_at' => $updatedAt]; return $id; }
     public function update(int $id, BranchInput $input, string $updatedAt): void { $this->rows[$id] = array_merge($this->rows[$id], ['code' => $input->code, 'name' => $input->name, 'city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'updated_at' => $updatedAt]); }
-    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): void { $this->rows[$id] = array_merge($this->rows[$id], ['city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'updated_at' => $updatedAt]); }
+    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): bool { if (($this->rows[$id]['status'] ?? '') !== 'active') return false; $this->rows[$id] = array_merge($this->rows[$id], ['city' => $input->city, 'address' => $input->address, 'phone' => $input->phone, 'updated_at' => $updatedAt]); return true; }
     public function deactivate(int $id, string $updatedAt): bool { if ($this->rows[$id]['status'] !== 'active') return false; $this->rows[$id]['status'] = 'inactive'; return true; }
 }
 
@@ -148,5 +222,6 @@ final class OrganizationHttpDepartmentRepository implements DepartmentRepository
     public function codeExists(int $branchId, string $code, ?int $exceptId = null): bool { foreach ($this->rows as $id => $row) if ($id !== $exceptId && $row['branch_id'] === $branchId && $row['code'] === $code) return true; return false; }
     public function insert(DepartmentInput $input, string $createdAt, string $updatedAt): int { $id = max(array_keys($this->rows)) + 1; $this->rows[$id] = ['id' => $id, 'branch_id' => $input->branchId, 'code' => $input->code, 'name' => $input->name, 'description' => $input->description, 'status' => 'active']; return $id; }
     public function update(int $id, DepartmentInput $input, string $updatedAt): void { $this->rows[$id] = array_merge($this->rows[$id], ['code' => $input->code, 'name' => $input->name, 'description' => $input->description]); }
+    public function updateMetadata(int $id, DepartmentMetadataInput $input, string $updatedAt): bool { if (($this->rows[$id]['status'] ?? '') !== 'active') return false; $this->rows[$id] = array_merge($this->rows[$id], ['description' => $input->description]); return true; }
     public function deactivate(int $id, string $updatedAt): bool { if ($this->rows[$id]['status'] !== 'active') return false; $this->rows[$id]['status'] = 'inactive'; return true; }
 }

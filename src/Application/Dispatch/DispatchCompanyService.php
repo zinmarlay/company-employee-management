@@ -65,6 +65,9 @@ final class DispatchCompanyService
         if ($company === null) {
             return null;
         }
+        if ((string) ($company['status'] ?? '') !== 'active') {
+            return null;
+        }
 
         return $this->formData([
             'code' => (string) $company['code'],
@@ -107,7 +110,9 @@ final class DispatchCompanyService
         }
 
         try {
-            $this->companies->update($id, $validation->input, $this->now());
+            if ((string) ($current['status'] ?? '') !== 'active' || !$this->companies->update($id, $validation->input, $this->now())) {
+                return $this->failure([], []);
+            }
         } catch (DispatchCompanyDuplicateException $exception) {
             return ['success' => false, 'id' => $id, 'values' => $validation->values, 'errors' => [$exception->field => 'A dispatch company with this code already exists.']];
         }
@@ -118,7 +123,8 @@ final class DispatchCompanyService
     /** @return array<string, mixed>|null */
     public function deactivationForm(int $id): ?array
     {
-        return $this->companies->findById($id);
+        $company = $this->companies->findById($id);
+        return $company !== null && (string) ($company['status'] ?? '') === 'active' ? $company : null;
     }
 
     /** @return array{status: string, company: array<string, mixed>|null} */

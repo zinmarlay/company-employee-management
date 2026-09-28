@@ -82,6 +82,9 @@ final class Translator
             'A branch with this prefecture already exists for the selected company.' => 'validation.duplicate_branch_prefecture',
             'The company, prefecture, branch code, and branch name cannot be changed.' => 'validation.branch_identity_immutable',
             'The department branch cannot be changed.' => 'validation.department_parent_immutable',
+            'Select a supported department type.' => 'validation.unsupported_department',
+            'A department of this type already exists for the selected branch.' => 'validation.duplicate_department_type',
+            'The branch, department code, department name, and status cannot be changed here.' => 'validation.department_identity_immutable',
             'A branch with this code already exists for the selected company.' => 'validation.duplicate_branch_code',
             'A department with this code already exists for the selected branch.' => 'validation.duplicate_department_code',
         ];

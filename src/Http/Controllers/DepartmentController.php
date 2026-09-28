@@ -152,6 +152,6 @@ final class DepartmentController
     private function notice(Request $request): ?string
     {
         $notice = $request->query('notice');
-        return is_string($notice) && in_array($notice, ['deactivated', 'already-inactive'], true) ? $notice : null;
+        return is_string($notice) && in_array($notice, ['deactivated', 'already-inactive', 'parent-inactive'], true) ? $notice : null;
     }
 }

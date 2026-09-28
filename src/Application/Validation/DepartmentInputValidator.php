@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Application\Validation;
 
-use App\Application\DTO\DepartmentInput;
+use App\Application\DTO\DepartmentCreateInput;
+use App\Application\DTO\DepartmentMetadataInput;
 
 final class DepartmentInputValidator
 {
@@ -14,16 +15,26 @@ final class DepartmentInputValidator
         $values = [];
         $errors = [];
         $branchId = $this->requiredPositiveInteger($rawInput, 'branch_id', $values, $errors);
-        $code = $this->requiredString($rawInput, 'code', 30, $values, $errors);
-        $name = $this->requiredString($rawInput, 'name', 120, $values, $errors);
+        $departmentCode = $this->requiredString($rawInput, 'department_code', 30, $values, $errors);
         $description = $this->optionalDescription($rawInput, $values, $errors);
 
         $input = null;
         if ($errors === []) {
-            $input = new DepartmentInput($branchId, $code, $name, $description);
+            $input = new DepartmentCreateInput($branchId, $departmentCode, $description);
         }
 
         return new DepartmentValidationResult($values, $input, $errors);
+    }
+
+    /** @param array<string, mixed> $rawInput */
+    public function validateMetadata(array $rawInput): DepartmentMetadataValidationResult
+    {
+        $values = [];
+        $errors = [];
+        $description = $this->optionalDescription($rawInput, $values, $errors);
+
+        $input = $errors === [] ? new DepartmentMetadataInput($description) : null;
+        return new DepartmentMetadataValidationResult($values, $input, $errors);
     }
 
     /** @param array<string, mixed> $input @param array<string, mixed> $values @param array<string, string> $errors */

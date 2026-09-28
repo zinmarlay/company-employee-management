@@ -117,11 +117,11 @@ final class PdoBranchRepository implements BranchRepositoryInterface
         return (int) $this->connection->get()->lastInsertId();
     }
 
-    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): void
+    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): bool
     {
         $statement = $this->connection->get()->prepare(
             'UPDATE branches SET city = :city, address = :address, '
-            . 'phone = :phone, updated_at = :updated_at WHERE id = :id',
+            . "phone = :phone, updated_at = :updated_at WHERE id = :id AND status = 'active'",
         );
 
         try {
@@ -136,6 +136,8 @@ final class PdoBranchRepository implements BranchRepositoryInterface
             $this->throwKnownDuplicate($exception);
             throw $exception;
         }
+
+        return $statement->rowCount() > 0;
     }
 
     public function deactivate(int $id, string $updatedAt): bool

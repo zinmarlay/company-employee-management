@@ -16,8 +16,10 @@ $id = (int) ($company['id'] ?? 0);
     $data['pageDescriptionKey'] = 'dispatch_companies.description';
     $data['pageActions'] = [
         ['href' => '/dispatch-companies', 'labelKey' => 'actions.back_to_companies', 'variant' => 'text'],
-        ['href' => '/dispatch-companies/' . $id . '/edit', 'labelKey' => 'actions.edit_company', 'variant' => 'secondary'],
     ];
+    if (($company['status'] ?? '') === 'active') {
+        $data['pageActions'][] = ['href' => '/dispatch-companies/' . $id . '/edit', 'labelKey' => 'actions.edit_company', 'variant' => 'secondary'];
+    }
     include __DIR__ . '/../partials/page-header.php';
     ?>
     <?php if (($data['notice'] ?? null) === 'deactivated'): ?><div class="alert alert--success" role="status"><?= $escape($t('dispatch_companies.deactivated_success')) ?></div><?php endif; ?>
