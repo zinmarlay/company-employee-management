@@ -17,9 +17,11 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\ExceptionResponder;
 use App\Http\HttpKernel;
+use App\Http\Middleware\LocaleMiddleware;
 use App\Http\Request;
 use App\Http\Routing\Router;
 use App\Http\View\ViewRenderer;
+use App\Localization\Translator;
 use App\Domain\Organization\BranchRepositoryInterface;
 use App\Domain\Organization\DepartmentRepositoryInterface;
 use DateTimeImmutable;
@@ -33,9 +35,10 @@ final class OrganizationHttpTest extends TestCase
         $branches = new OrganizationHttpBranchRepository();
         $departments = new OrganizationHttpDepartmentRepository();
         $clock = new OrganizationHttpClock();
-        $views = new ViewRenderer(dirname(__DIR__, 3) . '/resources/views');
-        $branchController = new BranchController($views, new BranchService($branches, $departments, new BranchInputValidator(), $clock));
-        $departmentController = new DepartmentController($views, new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock));
+        $translator = new Translator(dirname(__DIR__, 3) . '/resources/lang');
+        $views = new ViewRenderer(dirname(__DIR__, 3) . '/resources/views', $translator);
+        $branchController = new BranchController($views, new BranchService($branches, $departments, new BranchInputValidator(), $clock, null, null, $translator));
+        $departmentController = new DepartmentController($views, new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock, null, null, $translator));
         $router = new Router();
         $router->get('/branches', [$branchController, 'index']);
         $router->get('/branches/create', [$branchController, 'create']);
@@ -53,11 +56,23 @@ final class OrganizationHttpTest extends TestCase
         $router->get('/departments/{id}/deactivate', [$departmentController, 'deactivateConfirmation']);
         $router->post('/departments/{id}/deactivate', [$departmentController, 'deactivate']);
         $router->get('/departments/{id}', [$departmentController, 'show']);
-        $kernel = new HttpKernel($router, [], new ExceptionResponder(false));
+        $kernel = new HttpKernel($router, [new LocaleMiddleware($translator)], new ExceptionResponder(false));
 
         $list = $kernel->handle(Request::fromValues('GET', '/branches'));
         self::assertSame(200, $list->statusCode());
         self::assertStringContainsString('Tokyo Branch', $list->body());
+
+        $japaneseList = $kernel->handle(Request::fromValues('GET', '/branches', ['lang' => 'ja']));
+        self::assertSame(200, $japaneseList->statusCode());
+        self::assertStringContainsString('東京支店', $japaneseList->body());
+
+        $englishDepartments = $kernel->handle(Request::fromValues('GET', '/departments', ['lang' => 'en']));
+        self::assertSame(200, $englishDepartments->statusCode());
+        self::assertStringContainsString('Development', $englishDepartments->body());
+
+        $japaneseDepartments = $kernel->handle(Request::fromValues('GET', '/departments', ['lang' => 'ja']));
+        self::assertSame(200, $japaneseDepartments->statusCode());
+        self::assertStringContainsString('開発部', $japaneseDepartments->body());
 
         $createForm = $kernel->handle(Request::fromValues('GET', '/branches/create'));
         self::assertSame(200, $createForm->statusCode());
@@ -132,7 +147,7 @@ final class OrganizationHttpTest extends TestCase
 
         $departmentEdit = $kernel->handle(Request::fromValues('GET', '/departments/2/edit'));
         self::assertSame(200, $departmentEdit->statusCode());
-        self::assertStringContainsString('人事部', $departmentEdit->body());
+        self::assertStringContainsString('Human Resources', $departmentEdit->body());
         self::assertStringNotContainsString('name="code"', $departmentEdit->body());
         self::assertSame(303, $kernel->handle(Request::fromValues('POST', '/departments/2', [], [
             'branch_id' => '999',

@@ -73,8 +73,8 @@ $fullName = ($employee['last_name'] ?? '') . ' ' . ($employee['first_name'] ?? '
                 </div>
             </div>
             <dl class="detail-list">
-                <div><dt><?= $escape($t('form.branch')) ?></dt><dd><?= $escape(($employee['branch_code'] ?? '') . ' ' . ($employee['branch_name'] ?? '')) ?></dd></div>
-                <div><dt><?= $escape($t('form.department')) ?></dt><dd><?= $escape($employee['department_name'] === null ? $t('form.not_assigned') : (($employee['department_code'] ?? '') . ' ' . $employee['department_name'])) ?></dd></div>
+                <div><dt><?= $escape($t('form.branch')) ?></dt><dd><?= $escape(($employee['branch_code'] ?? '') . ' ' . ($employee['branch_display_name'] ?? $employee['branch_name'] ?? '')) ?></dd></div>
+                <div><dt><?= $escape($t('form.department')) ?></dt><dd><?= $escape(($employee['department_name'] ?? null) === null ? $t('form.not_assigned') : (($employee['department_code'] ?? '') . ' ' . ($employee['department_display_name'] ?? $employee['department_name']))) ?></dd></div>
                 <div><dt><?= $escape($t('form.position_title')) ?></dt><dd><?= $escape($employee['position_title'] ?? $t('status.not_provided')) ?></dd></div>
             </dl>
         </article>

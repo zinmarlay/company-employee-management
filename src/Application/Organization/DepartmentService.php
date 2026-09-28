@@ -11,12 +11,14 @@ use App\Domain\Organization\BranchRepositoryInterface;
 use App\Domain\Organization\DepartmentDuplicateException;
 use App\Domain\Organization\DepartmentRepositoryInterface;
 use App\Domain\Organization\DepartmentCatalog;
+use App\Localization\Translator;
 
 final class DepartmentService
 {
     private const LIST_LIMIT = 200;
 
     private readonly DepartmentCatalog $catalog;
+    private readonly OrganizationDisplayNameResolver $displayNames;
 
     public function __construct(
         private readonly DepartmentRepositoryInterface $departments,
@@ -24,8 +26,11 @@ final class DepartmentService
         private readonly DepartmentInputValidator $validator,
         private readonly Clock $clock,
         ?DepartmentCatalog $catalog = null,
+        ?OrganizationDisplayNameResolver $displayNames = null,
+        private readonly ?Translator $translator = null,
     ) {
         $this->catalog = $catalog ?? new DepartmentCatalog();
+        $this->displayNames = $displayNames ?? new OrganizationDisplayNameResolver(new \App\Domain\Organization\PrefectureCatalog(), $this->catalog);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -142,7 +147,7 @@ final class DepartmentService
     public function deactivationForm(int $id): ?array
     {
         $department = $this->departments->findById($id);
-        return $department !== null && $this->canManage($department) ? $department : null;
+        return $department !== null && $this->canManage($department) ? $this->decorateDepartment($department) : null;
     }
 
     /** @return array{status: string, department: array<string, mixed>|null} */
@@ -153,14 +158,15 @@ final class DepartmentService
             return ['status' => 'missing', 'department' => null];
         }
         if ((string) $department['status'] !== 'active') {
-            return ['status' => 'already-inactive', 'department' => $department];
+            return ['status' => 'already-inactive', 'department' => $this->decorateDepartment($department)];
         }
         if (!$this->parentBranchIsActive($department)) {
-            return ['status' => 'parent-inactive', 'department' => $department];
+            return ['status' => 'parent-inactive', 'department' => $this->decorateDepartment($department)];
         }
 
         $this->departments->deactivate($id, $this->now());
-        return ['status' => 'deactivated', 'department' => $this->departments->findById($id)];
+        $updated = $this->departments->findById($id);
+        return ['status' => 'deactivated', 'department' => $updated === null ? null : $this->decorateDepartment($updated)];
     }
 
     /** @return array<string, mixed> */
@@ -174,6 +180,16 @@ final class DepartmentService
             }
         }
 
+        $locale = $this->translator?->locale() ?? 'en';
+        $branches = array_map(
+            fn (array $branch): array => $this->displayNames->branch($branch, $locale),
+            $branches,
+        );
+        $departmentTypes = array_map(
+            fn (array $type): array => $this->displayNames->departmentTypeOption($type, $locale),
+            $this->catalog->all(),
+        );
+
         usort($branches, static fn (array $left, array $right): int => [
             (string) ($left['name'] ?? ''),
             (int) ($left['id'] ?? 0),
@@ -186,7 +202,7 @@ final class DepartmentService
             'values' => $values,
             'errors' => $errors,
             'branches' => $branches,
-            'departmentTypes' => $this->catalog->all(),
+            'departmentTypes' => $departmentTypes,
             'department' => $department,
         ];
     }
@@ -209,7 +225,8 @@ final class DepartmentService
         $catalog = $this->catalog->find((string) ($department['code'] ?? ''));
         $department['department_label_ja'] = $catalog['name'] ?? null;
         $department['department_label_en'] = $catalog['label_en'] ?? null;
-        return $department;
+
+        return $this->displayNames->department($department, $this->translator?->locale() ?? 'en');
     }
 
     /** @return array{success: bool, id: int|null, values: array<string, mixed>, errors: array<string, string>} */

@@ -6,7 +6,6 @@ use App\Http\View\HtmlEscaper;
 
 $t = $data['t'] ?? static fn (string $key, array $replace = []): string => $key;
 $translator = $data['translator'] ?? null;
-$locale = (string) ($data['locale'] ?? 'en');
 $values = is_array($data['values'] ?? null) ? $data['values'] : [];
 $errors = is_array($data['errors'] ?? null) ? $data['errors'] : [];
 $companies = is_array($data['companies'] ?? null) ? $data['companies'] : [];
@@ -31,14 +30,7 @@ $error = static function (string $field) use ($errors, $escape, $translator): st
 $attributes = static function (string $field) use ($errors, $escape): string {
     return isset($errors[$field]) ? ' aria-invalid="true" aria-describedby="' . $escape($field . '-error') . '"' : '';
 };
-$prefectureLabel = static function (array $prefecture) use ($locale): string {
-    return $locale === 'ja'
-        ? (string) $prefecture['name']
-        : (string) $prefecture['label_en'] . ' (' . (string) $prefecture['name'] . ')';
-};
-$currentPrefectureLabel = $locale === 'ja'
-    ? ($branch['prefecture_label_ja'] ?? $value('prefecture_code'))
-    : ($branch['prefecture_label_en'] ?? $value('prefecture_code'));
+$currentPrefectureLabel = $branch['prefecture_display_label'] ?? ($branch['prefecture_label_en'] ?? ($branch['prefecture_label_ja'] ?? $value('prefecture_code')));
 ?>
 <form class="card form-card" method="post" action="<?= $escape($action) ?>">
     <?php if ($errors !== []): ?>
@@ -59,9 +51,9 @@ $currentPrefectureLabel = $locale === 'ja'
         <?php if ($editing): ?>
             <div class="form-field"><label><?= $escape($t('form.prefecture')) ?></label><p class="readonly-field"><?= $escape($currentPrefectureLabel) ?></p></div>
             <div class="form-field"><label><?= $escape($t('form.branch_code')) ?></label><p class="readonly-field code-text"><?= $escape($value('code')) ?></p></div>
-            <div class="form-field"><label><?= $escape($t('form.branch_name')) ?></label><p class="readonly-field"><?= $escape($value('name')) ?></p></div>
+            <div class="form-field"><label><?= $escape($t('form.branch_name')) ?></label><p class="readonly-field"><?= $escape($branch['display_name'] ?? $value('name')) ?></p></div>
         <?php else: ?>
-            <div class="form-field form-field--wide"><label for="prefecture_code"><?= $escape($t('form.prefecture')) ?> <span class="required-mark" aria-hidden="true">*</span></label><select id="prefecture_code" name="prefecture_code" required<?= $attributes('prefecture_code') ?>><option value=""><?= $escape($t('form.select_prefecture')) ?></option><?php foreach ($prefectures as $prefecture): ?><option value="<?= $escape($prefecture['code']) ?>"<?= (string) $value('prefecture_code') === (string) $prefecture['code'] ? ' selected' : '' ?>><?= $escape($prefectureLabel($prefecture)) ?></option><?php endforeach; ?></select><?= $error('prefecture_code') ?></div>
+            <div class="form-field form-field--wide"><label for="prefecture_code"><?= $escape($t('form.prefecture')) ?> <span class="required-mark" aria-hidden="true">*</span></label><select id="prefecture_code" name="prefecture_code" required<?= $attributes('prefecture_code') ?>><option value=""><?= $escape($t('form.select_prefecture')) ?></option><?php foreach ($prefectures as $prefecture): ?><option value="<?= $escape($prefecture['code']) ?>"<?= (string) $value('prefecture_code') === (string) $prefecture['code'] ? ' selected' : '' ?>><?= $escape($prefecture['display_label'] ?? $prefecture['name']) ?></option><?php endforeach; ?></select><?= $error('prefecture_code') ?></div>
         <?php endif; ?>
         <div class="form-field"><label for="city"><?= $escape($t('form.city')) ?> <span class="required-mark" aria-hidden="true">*</span></label><input id="city" name="city" value="<?= $escape($value('city')) ?>" maxlength="120" required<?= $attributes('city') ?>><?= $error('city') ?></div>
         <div class="form-field"><label for="phone"><?= $escape($t('form.phone')) ?> <span class="required-mark" aria-hidden="true">*</span></label><input id="phone" name="phone" value="<?= $escape($value('phone')) ?>" maxlength="32" required<?= $attributes('phone') ?>><?= $error('phone') ?></div>

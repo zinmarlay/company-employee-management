@@ -38,7 +38,7 @@ final class DepartmentController
         }
 
         return Response::html($this->views->renderPage('departments/show', [
-            'pageTitle' => (string) $department['name'],
+            'pageTitle' => (string) ($department['display_name'] ?? $department['name']),
             'currentPath' => $request->path(),
             'activeNav' => 'departments',
             'department' => $department,

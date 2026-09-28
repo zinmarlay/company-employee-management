@@ -129,7 +129,7 @@ $employeeCode = $data['employeeCode'] ?? null;
                     $isInactiveCurrent = $branch['status'] !== 'active' && !$isSelected;
                     ?>
                     <option value="<?= $escape($branchId) ?>" <?= $isSelected ? 'selected' : '' ?> <?= $isInactiveCurrent ? 'disabled' : '' ?>>
-                        <?= $escape($branch['name']) ?><?= $branch['status'] !== 'active' ? $escape($t('form.inactive_suffix')) : '' ?>
+                        <?= $escape($branch['display_name'] ?? $branch['name']) ?><?= $branch['status'] !== 'active' ? $escape($t('form.inactive_suffix')) : '' ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -141,7 +141,7 @@ $employeeCode = $data['employeeCode'] ?? null;
             <select id="department_id" name="department_id"<?= $fieldAttributes('department_id') ?>>
                 <option value=""><?= $escape($t('form.not_assigned')) ?></option>
                 <?php foreach ($departmentGroups as $group): ?>
-                    <optgroup label="<?= $escape($group['branch']['name']) ?>">
+                    <optgroup label="<?= $escape($group['branch']['display_name'] ?? $group['branch']['name']) ?>">
                         <?php foreach ($group['departments'] as $department): ?>
                             <?php
                             $departmentId = (string) $department['id'];
@@ -149,7 +149,7 @@ $employeeCode = $data['employeeCode'] ?? null;
                             $isInactiveCurrent = $department['status'] !== 'active' && !$isSelected;
                             ?>
                             <option value="<?= $escape($departmentId) ?>" <?= $isSelected ? 'selected' : '' ?> <?= $isInactiveCurrent ? 'disabled' : '' ?>>
-                                <?= $escape($department['name']) ?><?= $department['status'] !== 'active' ? $escape($t('form.inactive_suffix')) : '' ?>
+                                <?= $escape($department['display_name'] ?? $department['name']) ?><?= $department['status'] !== 'active' ? $escape($t('form.inactive_suffix')) : '' ?>
                             </option>
                         <?php endforeach; ?>
                     </optgroup>

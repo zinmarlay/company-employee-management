@@ -10,6 +10,7 @@ use App\Application\Dispatch\DispatchCompanyService;
 use App\Application\Dispatch\DispatchContractService;
 use App\Application\Organization\BranchService;
 use App\Application\Organization\DepartmentService;
+use App\Application\Organization\OrganizationDisplayNameResolver;
 use App\Application\Support\SystemClock;
 use App\Application\Validation\DispatchCompanyInputValidator;
 use App\Application\Validation\DispatchContractInputValidator;
@@ -60,6 +61,7 @@ final class ApplicationBootstrap
         $departments = new PdoDepartmentRepository($connection);
         $expiration = new ContractExpirationClassifier();
         $clock = new SystemClock();
+        $displayNames = new OrganizationDisplayNameResolver(new PrefectureCatalog(), new DepartmentCatalog());
         $employeeService = new EmployeeService(
             new PdoEmployeeRepository($connection),
             new PdoBranchReadRepository($connection),
@@ -72,10 +74,11 @@ final class ApplicationBootstrap
             new PrefectureCatalog(),
             new DepartmentCatalog(),
             $translator,
+            $displayNames,
         );
         $employeeController = new EmployeeController($viewRenderer, $employeeService, $configuration);
-        $branchService = new BranchService($branches, $departments, new BranchInputValidator(), $clock, new PrefectureCatalog());
-        $departmentService = new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock, new DepartmentCatalog());
+        $branchService = new BranchService($branches, $departments, new BranchInputValidator(), $clock, new PrefectureCatalog(), $displayNames, $translator);
+        $departmentService = new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock, new DepartmentCatalog(), $displayNames, $translator);
         $dispatchCompanyService = new DispatchCompanyService(
             $dispatchCompanies,
             $dispatchContracts,

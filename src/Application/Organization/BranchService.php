@@ -11,12 +11,14 @@ use App\Domain\Organization\BranchDuplicateException;
 use App\Domain\Organization\BranchRepositoryInterface;
 use App\Domain\Organization\DepartmentRepositoryInterface;
 use App\Domain\Organization\PrefectureCatalog;
+use App\Localization\Translator;
 
 final class BranchService
 {
     private const LIST_LIMIT = 200;
 
     private readonly PrefectureCatalog $prefectures;
+    private readonly OrganizationDisplayNameResolver $displayNames;
 
     public function __construct(
         private readonly BranchRepositoryInterface $branches,
@@ -24,8 +26,11 @@ final class BranchService
         private readonly BranchInputValidator $validator,
         private readonly Clock $clock,
         ?PrefectureCatalog $prefectures = null,
+        ?OrganizationDisplayNameResolver $displayNames = null,
+        private readonly ?Translator $translator = null,
     ) {
         $this->prefectures = $prefectures ?? new PrefectureCatalog();
+        $this->displayNames = $displayNames ?? new OrganizationDisplayNameResolver($this->prefectures);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -43,7 +48,16 @@ final class BranchService
         }
 
         $branch = $this->decorateBranch($branch);
-        $branch['departments'] = $this->departments->listByBranchId($id);
+        $locale = $this->translator?->locale() ?? 'en';
+        $branch['departments'] = array_map(
+            function (array $department) use ($branch, $locale): array {
+                $department['branch_code'] ??= $branch['code'] ?? '';
+                $department['branch_name'] ??= $branch['name'] ?? '';
+
+                return $this->displayNames->department($department, $locale);
+            },
+            $this->departments->listByBranchId($id),
+        );
         return $branch;
     }
 
@@ -148,7 +162,9 @@ final class BranchService
     public function deactivationForm(int $id): ?array
     {
         $branch = $this->branches->findById($id);
-        return $branch !== null && (string) ($branch['status'] ?? '') === 'active' ? $branch : null;
+        return $branch !== null && (string) ($branch['status'] ?? '') === 'active'
+            ? $this->decorateBranch($branch)
+            : null;
     }
 
     /** @return array{status: string, branch: array<string, mixed>|null} */
@@ -159,11 +175,13 @@ final class BranchService
             return ['status' => 'missing', 'branch' => null];
         }
         if ((string) $branch['status'] !== 'active') {
-            return ['status' => 'already-inactive', 'branch' => $branch];
+            return ['status' => 'already-inactive', 'branch' => $this->decorateBranch($branch)];
         }
 
         $this->branches->deactivate($id, $this->now());
-        return ['status' => 'deactivated', 'branch' => $this->branches->findById($id)];
+        $updated = $this->branches->findById($id);
+
+        return ['status' => 'deactivated', 'branch' => $updated === null ? null : $this->decorateBranch($updated)];
     }
 
     /** @return array<string, mixed> */
@@ -173,7 +191,13 @@ final class BranchService
             'values' => $values,
             'errors' => $errors,
             'companies' => $this->branches->listCompanies(),
-            'prefectures' => $this->prefectures->all(),
+            'prefectures' => array_map(
+                fn (array $prefecture): array => $this->displayNames->prefectureOption(
+                    $prefecture,
+                    $this->translator?->locale() ?? 'en',
+                ),
+                $this->prefectures->all(),
+            ),
             'branch' => $branch,
         ];
     }
@@ -199,7 +223,8 @@ final class BranchService
         $branch['prefecture_code'] = (string) ($branch['code'] ?? '');
         $branch['prefecture_label_ja'] = $prefecture['name'] ?? null;
         $branch['prefecture_label_en'] = $prefecture['label_en'] ?? null;
-        return $branch;
+
+        return $this->displayNames->branch($branch, $this->translator?->locale() ?? 'en');
     }
 
     /** @return array{success: bool, id: int|null, values: array<string, mixed>, errors: array<string, string>} */

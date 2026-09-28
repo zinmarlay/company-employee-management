@@ -38,7 +38,7 @@ final class BranchController
         }
 
         return Response::html($this->views->renderPage('branches/show', [
-            'pageTitle' => (string) $branch['name'],
+            'pageTitle' => (string) ($branch['display_name'] ?? $branch['name']),
             'currentPath' => $request->path(),
             'activeNav' => 'branches',
             'branch' => $branch,
