@@ -23,6 +23,18 @@ final class PdoDepartmentReadRepository implements DepartmentReadRepositoryInter
         return $statement->fetchAll();
     }
 
+    public function listForSearch(): array
+    {
+        $statement = $this->connection->get()->query(
+            'SELECT d.id, d.branch_id, d.code, d.name, d.status, '
+            . 'b.code AS branch_code, b.name AS branch_name, b.status AS branch_status '
+            . 'FROM departments d INNER JOIN branches b ON b.id = d.branch_id '
+            . 'ORDER BY b.name ASC, d.name ASC, d.id ASC',
+        );
+
+        return $statement->fetchAll();
+    }
+
     public function findById(int $id): ?array
     {
         $statement = $this->connection->get()->prepare(

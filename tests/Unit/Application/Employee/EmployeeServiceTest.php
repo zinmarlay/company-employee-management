@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Application\Employee;
 
 use App\Application\DTO\EmployeeInput;
+use App\Application\DTO\EmployeeSearchCriteria;
+use App\Application\DTO\EmployeeSearchResult;
 use App\Application\Employee\EmployeeService;
 use App\Application\Support\Clock;
 use App\Application\Validation\EmployeeInputValidator;
@@ -182,6 +184,11 @@ final class InMemoryBranchRepository implements BranchReadRepositoryInterface
         return [$this->findById(1)];
     }
 
+    public function listForSearch(): array
+    {
+        return [$this->findById(1)];
+    }
+
     public function findById(int $id): ?array
     {
         return $id === 1 ? [
@@ -201,6 +208,14 @@ final class InMemoryDepartmentRepository implements DepartmentReadRepositoryInte
         return [
             $this->findById(1),
             $this->findById(2),
+        ];
+    }
+
+    public function listForSearch(): array
+    {
+        return [
+            ['id' => 1, 'branch_id' => 1, 'code' => 'ENG', 'name' => 'Engineering', 'status' => 'active', 'branch_name' => 'Tokyo'],
+            ['id' => 2, 'branch_id' => 2, 'code' => 'OSK', 'name' => 'Osaka', 'status' => 'active', 'branch_name' => 'Osaka'],
         ];
     }
 
@@ -248,6 +263,11 @@ final class InMemoryEmployeeRepository implements EmployeeRepositoryInterface
     public function listBasic(int $limit): array
     {
         return [];
+    }
+
+    public function search(EmployeeSearchCriteria $criteria): EmployeeSearchResult
+    {
+        return new EmployeeSearchResult([], 0, 1, $criteria->perPage);
     }
 
     public function findById(int $id): ?array

@@ -9,6 +9,9 @@ interface BranchReadRepositoryInterface
     /** @return array<int, array<string, mixed>> */
     public function listActive(): array;
 
+    /** @return array<int, array<string, mixed>> */
+    public function listForSearch(): array;
+
     /** @return array<string, mixed>|null */
     public function findById(int $id): ?array;
 }

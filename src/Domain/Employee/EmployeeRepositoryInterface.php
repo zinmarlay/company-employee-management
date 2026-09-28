@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Domain\Employee;
 
 use App\Application\DTO\EmployeeInput;
+use App\Application\DTO\EmployeeSearchCriteria;
+use App\Application\DTO\EmployeeSearchResult;
 
 interface EmployeeRepositoryInterface
 {
     /** @return array<int, array<string, mixed>> */
     public function listBasic(int $limit): array;
+
+    public function search(EmployeeSearchCriteria $criteria): EmployeeSearchResult;
 
     /** @return array<string, mixed>|null */
     public function findById(int $id): ?array;

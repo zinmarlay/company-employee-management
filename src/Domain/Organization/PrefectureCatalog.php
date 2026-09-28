@@ -86,6 +86,16 @@ final class PrefectureCatalog
         return $this->find($code)['branch_name'] ?? null;
     }
 
+    public function branchLabel(string $code, string $locale): ?string
+    {
+        $entry = $this->find($code);
+        if ($entry === null) {
+            return null;
+        }
+
+        return $locale === 'ja' ? $entry['branch_name'] : $entry['label_en'] . ' Branch';
+    }
+
     public function label(string $code, string $locale): ?string
     {
         $entry = $this->find($code);

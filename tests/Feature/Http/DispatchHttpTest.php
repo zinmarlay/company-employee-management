@@ -7,6 +7,8 @@ namespace Tests\Feature\Http;
 use App\Application\DTO\DispatchCompanyInput;
 use App\Application\DTO\DispatchContractInput;
 use App\Application\DTO\EmployeeInput;
+use App\Application\DTO\EmployeeSearchCriteria;
+use App\Application\DTO\EmployeeSearchResult;
 use App\Application\Dispatch\ContractExpirationClassifier;
 use App\Application\Dispatch\DispatchCompanyService;
 use App\Application\Dispatch\DispatchContractService;
@@ -154,6 +156,7 @@ final class DispatchHttpEmployeeRepository implements EmployeeRepositoryInterfac
         2 => ['id' => 2, 'employee_code' => 'EMP000002', 'first_name' => 'Hanako', 'last_name' => 'Sato', 'employee_type' => 'permanent'],
     ];
     public function listBasic(int $limit): array { return array_values($this->rows); }
+    public function search(EmployeeSearchCriteria $criteria): EmployeeSearchResult { return new EmployeeSearchResult([], 0, 1, $criteria->perPage); }
     public function findById(int $id): ?array { return $this->rows[$id] ?? null; }
     public function employeeCodeExists(string $code, ?int $exceptId = null): bool { return false; }
     public function emailExists(string $email, ?int $exceptId = null): bool { return false; }

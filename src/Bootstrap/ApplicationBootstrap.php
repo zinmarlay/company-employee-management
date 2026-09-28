@@ -68,6 +68,10 @@ final class ApplicationBootstrap
             $clock,
             $dispatchContracts,
             $expiration,
+            null,
+            new PrefectureCatalog(),
+            new DepartmentCatalog(),
+            $translator,
         );
         $employeeController = new EmployeeController($viewRenderer, $employeeService, $configuration);
         $branchService = new BranchService($branches, $departments, new BranchInputValidator(), $clock, new PrefectureCatalog());

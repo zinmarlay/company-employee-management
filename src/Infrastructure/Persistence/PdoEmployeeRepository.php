@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Infrastructure\Persistence;
 
 use App\Application\DTO\EmployeeInput;
+use App\Application\DTO\EmployeeSearchCriteria;
+use App\Application\DTO\EmployeeSearchResult;
 use App\Database\LazyPdoConnection;
 use App\Domain\Employee\EmployeeCodeAllocatorInterface;
 use App\Domain\Employee\EmployeeDuplicateException;
@@ -40,6 +42,57 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
         $statement->execute();
 
         return $statement->fetchAll();
+    }
+
+    public function search(EmployeeSearchCriteria $criteria): EmployeeSearchResult
+    {
+        [$where, $parameters] = $this->searchWhere($criteria);
+
+        $countStatement = $this->connection->get()->prepare(
+            'SELECT COUNT(*) FROM employees e '
+            . 'INNER JOIN branches b ON b.id = e.branch_id '
+            . 'LEFT JOIN departments d ON d.id = e.department_id AND d.branch_id = e.branch_id '
+            . $where,
+        );
+        $countStatement->execute($parameters);
+        $total = (int) $countStatement->fetchColumn();
+        $totalPages = max(1, (int) ceil($total / $criteria->perPage));
+        $page = min($criteria->page, $totalPages);
+        $offset = ($page - 1) * $criteria->perPage;
+
+        $sortExpressions = [
+            'employee_code' => 'e.employee_code',
+            'name' => 'CONCAT(e.last_name, \' \', e.first_name)',
+            'branch' => 'b.name',
+            'department' => 'COALESCE(d.name, \'\')',
+            'employee_type' => 'e.employee_type',
+            'status' => 'e.status',
+        ];
+        $sortExpression = $sortExpressions[$criteria->sort] ?? $sortExpressions['employee_code'];
+        $direction = $criteria->direction === 'desc' ? 'DESC' : 'ASC';
+
+        $statement = $this->connection->get()->prepare(
+            'SELECT e.id, e.branch_id, e.department_id, e.employee_code, '
+            . 'e.first_name, e.last_name, e.first_name_kana, e.last_name_kana, '
+            . 'e.email, e.phone, e.position_title, e.employee_type, e.hire_date, '
+            . 'e.status, e.created_at, e.updated_at, '
+            . 'b.code AS branch_code, b.name AS branch_name, b.status AS branch_status, '
+            . 'd.code AS department_code, d.name AS department_name, d.status AS department_status '
+            . 'FROM employees e '
+            . 'INNER JOIN branches b ON b.id = e.branch_id '
+            . 'LEFT JOIN departments d ON d.id = e.department_id AND d.branch_id = e.branch_id '
+            . $where
+            . ' ORDER BY ' . $sortExpression . ' ' . $direction
+            . ', e.employee_code ASC, e.id ASC LIMIT :limit OFFSET :offset',
+        );
+        foreach ($parameters as $name => $value) {
+            $statement->bindValue($name, $value);
+        }
+        $statement->bindValue('limit', $criteria->perPage, PDO::PARAM_INT);
+        $statement->bindValue('offset', $offset, PDO::PARAM_INT);
+        $statement->execute();
+
+        return new EmployeeSearchResult($statement->fetchAll(), $total, $page, $criteria->perPage);
     }
 
     public function findById(int $id): ?array
@@ -191,6 +244,62 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
         $statement->execute($parameters);
 
         return $statement->fetchColumn() !== false;
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    private function searchWhere(EmployeeSearchCriteria $criteria): array
+    {
+        $conditions = [];
+        $parameters = [];
+
+        if ($criteria->keyword !== null) {
+            $keyword = '%' . $this->escapeLike($criteria->keyword) . '%';
+            $conditions[] = '('
+                . 'e.employee_code LIKE :keyword_code ESCAPE \'\\\\\' '
+                . 'OR e.first_name LIKE :keyword_first_name ESCAPE \'\\\\\' '
+                . 'OR e.last_name LIKE :keyword_last_name ESCAPE \'\\\\\' '
+                . 'OR e.first_name_kana LIKE :keyword_first_name_kana ESCAPE \'\\\\\' '
+                . 'OR e.last_name_kana LIKE :keyword_last_name_kana ESCAPE \'\\\\\' '
+                . 'OR e.email LIKE :keyword_email ESCAPE \'\\\\\''
+                . ')';
+            $parameters = [
+                'keyword_code' => $keyword,
+                'keyword_first_name' => $keyword,
+                'keyword_last_name' => $keyword,
+                'keyword_first_name_kana' => $keyword,
+                'keyword_last_name_kana' => $keyword,
+                'keyword_email' => $keyword,
+            ];
+        }
+
+        if ($criteria->branchId !== null) {
+            $conditions[] = 'e.branch_id = :branch_id';
+            $parameters['branch_id'] = $criteria->branchId;
+        }
+        if ($criteria->departmentId !== null) {
+            $conditions[] = 'e.department_id = :department_id';
+            $parameters['department_id'] = $criteria->departmentId;
+        }
+        if ($criteria->employeeType !== null) {
+            $conditions[] = 'e.employee_type = :employee_type';
+            $parameters['employee_type'] = $criteria->employeeType;
+        }
+        if ($criteria->status !== null) {
+            $conditions[] = 'e.status = :status';
+            $parameters['status'] = $criteria->status;
+        }
+
+        return [
+            $conditions === [] ? '' : 'WHERE ' . implode(' AND ', $conditions),
+            $parameters,
+        ];
+    }
+
+    private function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     private function throwKnownDuplicate(PDOException $exception): void

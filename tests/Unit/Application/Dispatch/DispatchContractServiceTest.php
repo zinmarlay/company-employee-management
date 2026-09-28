@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Application\Dispatch;
 
 use App\Application\DTO\DispatchCompanyInput;
+use App\Application\DTO\EmployeeSearchCriteria;
+use App\Application\DTO\EmployeeSearchResult;
 use App\Application\DTO\DispatchContractInput;
 use App\Application\DTO\EmployeeInput;
 use App\Application\Dispatch\ContractExpirationClassifier;
@@ -128,6 +130,7 @@ final class FakeDispatchCompanyRepository implements DispatchCompanyRepositoryIn
 final class FakeEmployeeRepository implements EmployeeRepositoryInterface
 {
     public function listBasic(int $limit): array { return array_values($this->rows); }
+    public function search(EmployeeSearchCriteria $criteria): EmployeeSearchResult { return new EmployeeSearchResult([], 0, 1, $criteria->perPage); }
     public function findById(int $id): ?array { return $this->rows[$id] ?? null; }
     public function employeeCodeExists(string $code, ?int $exceptId = null): bool { return false; }
     public function emailExists(string $email, ?int $exceptId = null): bool { return false; }

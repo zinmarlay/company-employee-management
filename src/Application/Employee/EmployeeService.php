@@ -13,12 +13,13 @@ use App\Domain\Employee\EmployeeDuplicateException;
 use App\Domain\Employee\EmployeeCodeSequenceExhaustedException;
 use App\Domain\Employee\EmployeeRepositoryInterface;
 use App\Domain\Organization\BranchReadRepositoryInterface;
+use App\Domain\Organization\DepartmentCatalog;
 use App\Domain\Organization\DepartmentReadRepositoryInterface;
+use App\Domain\Organization\PrefectureCatalog;
+use App\Localization\Translator;
 
 final class EmployeeService
 {
-    private const LIST_LIMIT = 200;
-
     public function __construct(
         private readonly EmployeeRepositoryInterface $employees,
         private readonly BranchReadRepositoryInterface $branches,
@@ -27,13 +28,69 @@ final class EmployeeService
         private readonly Clock $clock,
         private readonly ?DispatchContractRepositoryInterface $dispatchContracts = null,
         private readonly ?ContractExpirationClassifier $expiration = null,
+        ?EmployeeSearchCriteriaParser $searchParser = null,
+        ?PrefectureCatalog $prefectures = null,
+        ?DepartmentCatalog $departmentCatalog = null,
+        private readonly ?Translator $translator = null,
     ) {
+        $this->searchParser = $searchParser ?? new EmployeeSearchCriteriaParser();
+        $this->prefectures = $prefectures ?? new PrefectureCatalog();
+        $this->departmentCatalog = $departmentCatalog ?? new DepartmentCatalog();
     }
 
-    /** @return array<int, array<string, mixed>> */
-    public function listEmployees(): array
+    private readonly EmployeeSearchCriteriaParser $searchParser;
+    private readonly PrefectureCatalog $prefectures;
+    private readonly DepartmentCatalog $departmentCatalog;
+
+    /** @param array<string, mixed> $query @return array<string, mixed> */
+    public function listEmployees(array $query = []): array
     {
-        return $this->employees->listBasic(self::LIST_LIMIT);
+        $criteria = $this->searchParser->parse($query);
+        $result = $this->employees->search($criteria);
+        $locale = $this->translator?->locale() ?? 'en';
+        $employees = array_map(
+            fn (array $employee): array => $this->localizeEmployeeRow($employee, $locale),
+            $result->rows,
+        );
+        $branches = array_map(
+            fn (array $branch): array => $this->localizeBranchChoice($branch, $locale),
+            $this->branches->listForSearch(),
+        );
+        $departmentCatalog = array_map(
+            fn (array $department): array => $this->localizeDepartmentChoice($department, $locale),
+            $this->departments->listForSearch(),
+        );
+        $departments = $departmentCatalog;
+
+        if ($criteria->branchId !== null) {
+            $departments = array_values(array_filter(
+                $departments,
+                static fn (array $department): bool => (int) ($department['branch_id'] ?? 0) === $criteria->branchId,
+            ));
+        }
+
+        usort($branches, $this->organizationChoiceSorter(...));
+        usort($departments, $this->departmentChoiceSorter(...));
+
+        $queryState = $criteria->queryParameters();
+        if ($result->page === 1) {
+            unset($queryState['page']);
+        } else {
+            $queryState['page'] = $result->page;
+        }
+
+        return [
+            'employees' => $employees,
+            'total' => $result->total,
+            'currentPage' => $result->page,
+            'totalPages' => $result->totalPages(),
+            'perPage' => $result->perPage,
+            'criteria' => $criteria,
+            'queryState' => $queryState,
+            'searchBranches' => $branches,
+            'searchDepartments' => $departments,
+            'searchDepartmentCatalog' => $departmentCatalog,
+        ];
     }
 
     /** @return array<string, mixed>|null */
@@ -393,6 +450,80 @@ final class EmployeeService
         }
 
         return false;
+    }
+
+    /** @param array<string, mixed> $left @param array<string, mixed> $right */
+    private function organizationChoiceSorter(array $left, array $right): int
+    {
+        return [
+            (string) ($left['name'] ?? ''),
+            (int) ($left['id'] ?? 0),
+        ] <=> [
+            (string) ($right['name'] ?? ''),
+            (int) ($right['id'] ?? 0),
+        ];
+    }
+
+    /** @param array<string, mixed> $left @param array<string, mixed> $right */
+    private function departmentChoiceSorter(array $left, array $right): int
+    {
+        return [
+            (string) ($left['branch_name'] ?? ''),
+            (string) ($left['name'] ?? ''),
+            (int) ($left['id'] ?? 0),
+        ] <=> [
+            (string) ($right['branch_name'] ?? ''),
+            (string) ($right['name'] ?? ''),
+            (int) ($right['id'] ?? 0),
+        ];
+    }
+
+    /** @param array<string, mixed> $branch @return array<string, mixed> */
+    private function localizeBranchChoice(array $branch, string $locale): array
+    {
+        $branch['display_name'] = $this->prefectures->branchLabel(
+            (string) ($branch['code'] ?? ''),
+            $locale,
+        ) ?? (string) ($branch['name'] ?? '');
+
+        return $branch;
+    }
+
+    /** @param array<string, mixed> $department @return array<string, mixed> */
+    private function localizeDepartmentChoice(array $department, string $locale): array
+    {
+        $departmentLabel = $this->departmentCatalog->label(
+            (string) ($department['code'] ?? ''),
+            $locale,
+        ) ?? (string) ($department['name'] ?? '');
+        $branchLabel = $this->prefectures->branchLabel(
+            (string) ($department['branch_code'] ?? ''),
+            $locale,
+        ) ?? (string) ($department['branch_name'] ?? '');
+        $separator = $locale === 'ja' ? '・' : ' · ';
+
+        $department['display_name'] = $departmentLabel;
+        $department['display_label'] = $branchLabel . $separator . $departmentLabel;
+
+        return $department;
+    }
+
+    /** @param array<string, mixed> $employee @return array<string, mixed> */
+    private function localizeEmployeeRow(array $employee, string $locale): array
+    {
+        $employee['branch_display_name'] = $this->prefectures->branchLabel(
+            (string) ($employee['branch_code'] ?? ''),
+            $locale,
+        ) ?? (string) ($employee['branch_name'] ?? '');
+
+        $employee['department_display_name'] = $employee['department_name'] === null
+            ? null
+            : ($this->departmentCatalog->label(
+                (string) ($employee['department_code'] ?? ''),
+                $locale,
+            ) ?? (string) $employee['department_name']);
+
+        return $employee;
     }
 
     /**

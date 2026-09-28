@@ -132,21 +132,37 @@ final class OrganizationRepositoryIntegrationTest extends TestCase
         self::assertSame('東京都新宿区', $branch['address']);
     }
 
-    public function testDepartmentMetadataUpdatePreservesIdentityAndStatus(): void
+    public function testActiveDepartmentMetadataUpdateChangesDescriptionOnly(): void
     {
         $companyId = $this->insertCompany('COMPANY-DEPARTMENT-METADATA');
         $branchId = $this->branches()->insert(new BranchInput($companyId, 'TOKYO', '東京支店', '東京都', '東京都千代田区', '03-0000-0000'), '2026-09-25 00:00:00', '2026-09-25 00:00:00');
-        $departmentId = $this->departments()->insert(new DepartmentInput($branchId, 'DEV', '開発部', null), '2026-09-25 00:00:00', '2026-09-25 00:00:00');
-        self::assertTrue($this->departments()->deactivate($departmentId, '2026-09-25 01:00:00'));
+        $departmentId = $this->departments()->insert(new DepartmentInput($branchId, 'DEV', '開発部', 'Original description'), '2026-09-25 00:00:00', '2026-09-25 00:00:00');
 
-        $this->departments()->updateMetadata($departmentId, new DepartmentMetadataInput('Updated description'), '2026-09-25 02:00:00');
+        self::assertTrue($this->departments()->updateMetadata($departmentId, new DepartmentMetadataInput('Updated description'), '2026-09-25 01:00:00'));
         $department = $this->departments()->findById($departmentId);
 
-        self::assertSame(1, (int) $department['branch_id']);
+        self::assertSame($branchId, (int) $department['branch_id']);
+        self::assertSame('DEV', $department['code']);
+        self::assertSame('開発部', $department['name']);
+        self::assertSame('active', $department['status']);
+        self::assertSame('Updated description', $department['description']);
+    }
+
+    public function testInactiveDepartmentMetadataUpdateIsRejectedAndPreservesAllData(): void
+    {
+        $companyId = $this->insertCompany('COMP-INACT-DEPT');
+        $branchId = $this->branches()->insert(new BranchInput($companyId, 'TOKYO', '東京支店', '東京都', '東京都千代田区', '03-0000-0000'), '2026-09-25 00:00:00', '2026-09-25 00:00:00');
+        $departmentId = $this->departments()->insert(new DepartmentInput($branchId, 'DEV', '開発部', 'Original description'), '2026-09-25 00:00:00', '2026-09-25 00:00:00');
+        self::assertTrue($this->departments()->deactivate($departmentId, '2026-09-25 01:00:00'));
+
+        self::assertFalse($this->departments()->updateMetadata($departmentId, new DepartmentMetadataInput('Updated description'), '2026-09-25 02:00:00'));
+        $department = $this->departments()->findById($departmentId);
+
+        self::assertSame($branchId, (int) $department['branch_id']);
         self::assertSame('DEV', $department['code']);
         self::assertSame('開発部', $department['name']);
         self::assertSame('inactive', $department['status']);
-        self::assertSame('Updated description', $department['description']);
+        self::assertSame('Original description', $department['description']);
     }
 
     private function insertCompany(string $code): int

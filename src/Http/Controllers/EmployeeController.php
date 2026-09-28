@@ -24,11 +24,12 @@ final class EmployeeController
 
     public function index(Request $request): Response
     {
+        $list = $this->employees->listEmployees($request->queryParameters());
         $page = $this->views->renderPage('employees/index', [
             'pageTitleKey' => 'employees.title',
             'currentPath' => $request->path(),
             'activeNav' => 'employees',
-            'employees' => $this->employees->listEmployees(),
+            ...$list,
             'notice' => $this->notice($request),
         ]);
 

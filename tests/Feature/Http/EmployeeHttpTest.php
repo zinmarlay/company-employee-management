@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Http;
 
 use App\Application\DTO\EmployeeInput;
+use App\Application\DTO\EmployeeSearchCriteria;
+use App\Application\DTO\EmployeeSearchResult;
 use App\Application\Employee\EmployeeService;
 use App\Application\Support\Clock;
 use App\Application\Validation\EmployeeInputValidator;
@@ -46,9 +48,145 @@ final class EmployeeHttpTest extends TestCase
         self::assertStringContainsString('EMP000001', $detail->body());
         self::assertStringContainsString('Automatically assigned.', $create->body());
         self::assertStringContainsString('EMP000001', $edit->body());
+        self::assertStringNotContainsString('Osaka', $create->body());
+        self::assertStringNotContainsString('Osaka', $edit->body());
         self::assertStringContainsString('&lt;Employee&gt;', $detail->body());
         self::assertStringNotContainsString('<Employee>', $detail->body());
         self::assertStringContainsString('Confirm deactivation', $deactivate->body());
+    }
+
+    public function testEmployeeSearchUsesGetFiltersAndPreservesHistoricalResults(): void
+    {
+        $kernel = $this->kernel();
+
+        $response = $kernel->handle(Request::fromValues(
+            'GET',
+            '/employees',
+            ['keyword' => ' Historical ', 'status' => 'inactive', 'sort' => 'name', 'direction' => 'desc'],
+        ));
+
+        self::assertSame(200, $response->statusCode());
+        self::assertStringContainsString('EMP000003', $response->body());
+        self::assertStringContainsString('value="Historical"', $response->body());
+        self::assertStringContainsString('1 employees', $response->body());
+        self::assertStringContainsString('value="inactive" selected', $response->body());
+        self::assertStringNotContainsString('EMP000001', $response->body());
+    }
+
+    public function testEmployeeSearchHandlesMismatchedAndMalformedFiltersAsEmptySafeResults(): void
+    {
+        $kernel = $this->kernel();
+
+        $mismatched = $kernel->handle(Request::fromValues(
+            'GET',
+            '/employees',
+            ['branch_id' => '1', 'department_id' => '999'],
+        ));
+        $malformed = $kernel->handle(Request::fromValues(
+            'GET',
+            '/employees',
+            ['keyword' => ['unexpected'], 'page' => '-1', 'sort' => 'raw_sql'],
+        ));
+
+        self::assertSame(200, $mismatched->statusCode());
+        self::assertStringContainsString('0 employees', $mismatched->body());
+        self::assertStringContainsString('/employees', $mismatched->body());
+        self::assertSame(200, $malformed->statusCode());
+        self::assertStringContainsString('EMP000001', $malformed->body());
+    }
+
+    public function testEmployeeSearchDepartmentChoicesFollowBranchAndKeepHistoricalOptions(): void
+    {
+        $kernel = $this->kernel();
+
+        $allBranches = $kernel->handle(Request::fromValues('GET', '/employees'));
+        $tokyo = $kernel->handle(Request::fromValues('GET', '/employees', ['branch_id' => '1']));
+        $osaka = $kernel->handle(Request::fromValues('GET', '/employees', ['branch_id' => '2']));
+        $validSelection = $kernel->handle(Request::fromValues(
+            'GET',
+            '/employees',
+            ['branch_id' => '1', 'department_id' => '1'],
+        ));
+        $mismatchedSelection = $kernel->handle(Request::fromValues(
+            'GET',
+            '/employees',
+            ['branch_id' => '1', 'department_id' => '2'],
+        ));
+        $allDepartmentOptions = $this->between($allBranches->body(), '<select id="employee_department_id"', '</select>');
+        $tokyoDepartmentOptions = $this->between($tokyo->body(), '<select id="employee_department_id"', '</select>');
+        $osakaDepartmentOptions = $this->between($osaka->body(), '<select id="employee_department_id"', '</select>');
+
+        self::assertSame(200, $allBranches->statusCode());
+        self::assertStringContainsString('<option value="1"', $allDepartmentOptions);
+        self::assertStringContainsString('<option value="2"', $allDepartmentOptions);
+        self::assertStringContainsString('<option value="3"', $allDepartmentOptions);
+
+        self::assertSame(200, $tokyo->statusCode());
+        self::assertStringContainsString('<option value="1"', $tokyoDepartmentOptions);
+        self::assertStringNotContainsString('<option value="2"', $tokyoDepartmentOptions);
+        self::assertStringNotContainsString('<option value="3"', $tokyoDepartmentOptions);
+
+        self::assertSame(200, $osaka->statusCode());
+        self::assertStringNotContainsString('<option value="1"', $osakaDepartmentOptions);
+        self::assertStringContainsString('<option value="2"', $osakaDepartmentOptions);
+        self::assertStringContainsString('<option value="3"', $osakaDepartmentOptions);
+        self::assertStringContainsString('(inactive)', $osakaDepartmentOptions);
+
+        self::assertStringContainsString('<option value="1" selected', $validSelection->body());
+        self::assertSame(200, $mismatchedSelection->statusCode());
+        self::assertStringContainsString('0 employees', $mismatchedSelection->body());
+        self::assertStringNotContainsString('<option value="2" selected', $mismatchedSelection->body());
+    }
+
+    public function testEmployeeSearchIncludesProgressiveDepartmentFilterEnhancement(): void
+    {
+        $response = $this->kernel()->handle(Request::fromValues('GET', '/employees'));
+
+        self::assertSame(200, $response->statusCode());
+        self::assertStringContainsString('id="employee-search-department-data"', $response->body());
+        self::assertStringContainsString("branchSelect.addEventListener('change'", $response->body());
+        self::assertStringContainsString('renderDepartments(branchSelect.value, departmentSelect.value)', $response->body());
+    }
+
+    public function testEmployeeSearchOrganizationChoicesUseLocalizedCatalogLabelsAndLegacyFallbacks(): void
+    {
+        $kernel = $this->kernel();
+
+        $english = $kernel->handle(Request::fromValues('GET', '/employees', ['lang' => 'en']));
+        $japanese = $kernel->handle(Request::fromValues('GET', '/employees', ['lang' => 'ja']));
+        $englishAgain = $kernel->handle(Request::fromValues('GET', '/employees', ['lang' => 'en', 'branch_id' => '1']));
+
+        $englishBranchOptions = $this->between($english->body(), '<select id="employee_branch_id"', '</select>');
+        $englishDepartmentOptions = $this->between($english->body(), '<select id="employee_department_id"', '</select>');
+        $japaneseBranchOptions = $this->between($japanese->body(), '<select id="employee_branch_id"', '</select>');
+        $japaneseDepartmentOptions = $this->between($japanese->body(), '<select id="employee_department_id"', '</select>');
+        $englishResultRows = $this->between($english->body(), '<tbody>', '</tbody>');
+        $japaneseResultRows = $this->between($japanese->body(), '<tbody>', '</tbody>');
+
+        self::assertStringContainsString('Tokyo Branch', $englishBranchOptions);
+        self::assertStringContainsString('Tokyo Branch · Development', $englishDepartmentOptions);
+        self::assertStringContainsString('Osaka Branch (inactive)', $englishBranchOptions);
+        self::assertStringContainsString('Osaka Branch · Human Resources (inactive)', $englishDepartmentOptions);
+        self::assertStringContainsString('横浜支店', $englishBranchOptions);
+        self::assertStringContainsString('横浜支店 · 旧部署 (inactive)', $englishDepartmentOptions);
+        self::assertStringNotContainsString('東京支店', $englishBranchOptions);
+        self::assertStringNotContainsString('開発部', $englishDepartmentOptions);
+
+        self::assertStringContainsString('東京支店', $japaneseBranchOptions);
+        self::assertStringContainsString('東京支店・開発部', $japaneseDepartmentOptions);
+        self::assertStringContainsString('大阪支店（無効）', $japaneseBranchOptions);
+        self::assertStringContainsString('大阪支店・人事部（無効）', $japaneseDepartmentOptions);
+
+        self::assertStringContainsString('data-label="Branch">Tokyo Branch', $englishResultRows);
+        self::assertStringContainsString('data-label="Department">Development', $englishResultRows);
+        self::assertStringContainsString('data-label="Branch">横浜支店', $englishResultRows);
+        self::assertStringContainsString('data-label="Department">旧部署', $englishResultRows);
+        self::assertStringContainsString('data-label="支店">東京支店', $japaneseResultRows);
+        self::assertStringContainsString('data-label="部署">開発部', $japaneseResultRows);
+
+        self::assertStringContainsString('<option value="1"', $englishAgain->body());
+        self::assertStringContainsString('2 employees', $englishAgain->body());
+        self::assertStringContainsString('Tokyo Branch', $englishAgain->body());
     }
 
     public function testInvalidCreatePreservesSubmittedValuesAndEscapesThem(): void
@@ -257,6 +395,12 @@ final class EmployeeHttpTest extends TestCase
             new HttpDepartmentRepository(),
             new EmployeeInputValidator(),
             new HttpFixedClock(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            $translator,
         );
         $controller = new EmployeeController($views, $service, $configuration);
         $router = new Router();
@@ -288,11 +432,23 @@ final class HttpBranchRepository implements BranchReadRepositoryInterface
         return [$this->findById(1)];
     }
 
+    public function listForSearch(): array
+    {
+        return [
+            $this->findById(1),
+            $this->findById(2),
+            $this->findById(3),
+        ];
+    }
+
     public function findById(int $id): ?array
     {
-        return $id === 1
-            ? ['id' => 1, 'code' => 'TOKYO', 'name' => 'Tokyo', 'city' => 'Tokyo', 'status' => 'active']
-            : null;
+        return match ($id) {
+            1 => ['id' => 1, 'code' => 'TOKYO', 'name' => 'Tokyo', 'city' => 'Tokyo', 'status' => 'active'],
+            2 => ['id' => 2, 'code' => 'OSAKA', 'name' => 'Osaka', 'city' => 'Osaka', 'status' => 'inactive'],
+            3 => ['id' => 3, 'code' => 'LEGACY', 'name' => '横浜支店', 'city' => '横浜', 'status' => 'inactive'],
+            default => null,
+        };
     }
 }
 
@@ -303,11 +459,60 @@ final class HttpDepartmentRepository implements DepartmentReadRepositoryInterfac
         return [$this->findById(1)];
     }
 
+    public function listForSearch(): array
+    {
+        return [
+            [
+                'id' => 1,
+                'branch_id' => 1,
+                'code' => 'DEV',
+                'name' => '開発部',
+                'status' => 'active',
+                'branch_code' => 'TOKYO',
+                'branch_name' => '東京支店',
+                'branch_status' => 'active',
+            ],
+            [
+                'id' => 2,
+                'branch_id' => 2,
+                'code' => 'SALES',
+                'name' => '営業部',
+                'status' => 'active',
+                'branch_code' => 'OSAKA',
+                'branch_name' => '大阪支店',
+                'branch_status' => 'inactive',
+            ],
+            [
+                'id' => 3,
+                'branch_id' => 2,
+                'code' => 'HR',
+                'name' => '旧人事',
+                'status' => 'inactive',
+                'branch_code' => 'OSAKA',
+                'branch_status' => 'inactive',
+            ],
+            [
+                'id' => 4,
+                'branch_id' => 3,
+                'code' => 'LEGACY',
+                'name' => '旧部署',
+                'status' => 'inactive',
+                'branch_code' => 'LEGACY',
+                'branch_name' => '横浜支店',
+                'branch_status' => 'inactive',
+            ],
+        ];
+    }
+
     public function findById(int $id): ?array
     {
-        return $id === 1
-            ? ['id' => 1, 'branch_id' => 1, 'code' => 'ENG', 'name' => 'Engineering', 'status' => 'active']
-            : null;
+        return match ($id) {
+            1 => ['id' => 1, 'branch_id' => 1, 'code' => 'DEV', 'name' => '開発部', 'status' => 'active'],
+            2 => ['id' => 2, 'branch_id' => 2, 'code' => 'SALES', 'name' => '営業部', 'status' => 'active'],
+            3 => ['id' => 3, 'branch_id' => 2, 'code' => 'HR', 'name' => '旧人事', 'status' => 'inactive'],
+            4 => ['id' => 4, 'branch_id' => 3, 'code' => 'LEGACY', 'name' => '旧部署', 'status' => 'inactive'],
+            default => null,
+        };
     }
 }
 
@@ -335,7 +540,7 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
             'branch_code' => 'TOKYO',
             'branch_name' => '<Tokyo>',
             'branch_status' => 'active',
-            'department_code' => 'ENG',
+            'department_code' => 'DEV',
             'department_name' => '<Engineering>',
             'department_status' => 'active',
         ],
@@ -359,9 +564,33 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
             'branch_code' => 'TOKYO',
             'branch_name' => 'Tokyo',
             'branch_status' => 'active',
-            'department_code' => 'ENG',
+            'department_code' => 'DEV',
             'department_name' => 'Engineering',
             'department_status' => 'active',
+        ],
+        4 => [
+            'id' => 4,
+            'branch_id' => 3,
+            'department_id' => 4,
+            'employee_code' => 'EMP000004',
+            'first_name' => 'Legacy',
+            'last_name' => 'Employee',
+            'first_name_kana' => 'レガシー',
+            'last_name_kana' => 'エンプロイー',
+            'email' => 'legacy@example.test',
+            'phone' => '045-0000-0004',
+            'position_title' => 'Legacy position',
+            'employee_type' => 'permanent',
+            'hire_date' => '2024-01-01',
+            'status' => 'inactive',
+            'created_at' => '2024-01-01 00:00:00',
+            'updated_at' => '2026-01-01 00:00:00',
+            'branch_code' => 'LEGACY',
+            'branch_name' => '横浜支店',
+            'branch_status' => 'inactive',
+            'department_code' => 'LEGACY',
+            'department_name' => '旧部署',
+            'department_status' => 'inactive',
         ],
     ];
     private int $nextId = 2;
@@ -385,6 +614,79 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
         );
 
         return array_slice($rows, 0, $limit);
+    }
+
+    public function search(EmployeeSearchCriteria $criteria): EmployeeSearchResult
+    {
+        $rows = array_values(array_filter($this->rows, static function (array $row) use ($criteria): bool {
+            if ($criteria->keyword !== null) {
+                $haystack = implode(' ', [
+                    $row['employee_code'],
+                    $row['first_name'],
+                    $row['last_name'],
+                    $row['first_name_kana'],
+                    $row['last_name_kana'],
+                    $row['email'],
+                ]);
+                if (mb_stripos($haystack, $criteria->keyword) === false) {
+                    return false;
+                }
+            }
+            if ($criteria->branchId !== null && (int) $row['branch_id'] !== $criteria->branchId) {
+                return false;
+            }
+            if ($criteria->departmentId !== null && (int) ($row['department_id'] ?? 0) !== $criteria->departmentId) {
+                return false;
+            }
+            if ($criteria->employeeType !== null && $row['employee_type'] !== $criteria->employeeType) {
+                return false;
+            }
+            if ($criteria->status !== null && $row['status'] !== $criteria->status) {
+                return false;
+            }
+            return true;
+        }));
+        usort($rows, static function (array $left, array $right) use ($criteria): int {
+            $value = static function (array $row) use ($criteria): string {
+                return match ($criteria->sort) {
+                    'name' => $row['last_name'] . ' ' . $row['first_name'],
+                    'branch' => $row['branch_name'],
+                    'department' => $row['department_name'] ?? '',
+                    'employee_type' => $row['employee_type'],
+                    'status' => $row['status'],
+                    default => $row['employee_code'],
+                };
+            };
+            $comparison = $value($left) <=> $value($right);
+            if ($comparison === 0) {
+                $comparison = $left['employee_code'] <=> $right['employee_code'];
+            }
+            if ($comparison === 0) {
+                $comparison = $left['id'] <=> $right['id'];
+            }
+            return $criteria->direction === 'desc' ? -$comparison : $comparison;
+        });
+        $total = count($rows);
+        $totalPages = max(1, (int) ceil($total / $criteria->perPage));
+        $page = min($criteria->page, $totalPages);
+        $rows = array_slice($rows, ($page - 1) * $criteria->perPage, $criteria->perPage);
+
+        return new EmployeeSearchResult(array_map(
+            static fn (array $row): array => [
+                'id' => $row['id'],
+                'branch_code' => $row['branch_code'],
+                'branch_name' => $row['branch_name'],
+                'department_code' => $row['department_code'],
+                'department_name' => $row['department_name'],
+                'employee_code' => $row['employee_code'],
+                'first_name' => $row['first_name'],
+                'last_name' => $row['last_name'],
+                'position_title' => $row['position_title'],
+                'employee_type' => $row['employee_type'],
+                'status' => $row['status'],
+            ],
+            $rows,
+        ), $total, $page, $criteria->perPage);
     }
 
     public function findById(int $id): ?array
@@ -485,7 +787,7 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
             'branch_code' => 'TOKYO',
             'branch_name' => 'Tokyo',
             'branch_status' => 'active',
-            'department_code' => 'ENG',
+            'department_code' => 'DEV',
             'department_name' => $input->departmentId === null ? null : 'Engineering',
             'department_status' => $input->departmentId === null ? null : 'active',
         ];

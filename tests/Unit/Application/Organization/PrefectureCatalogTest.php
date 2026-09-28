@@ -20,6 +20,8 @@ final class PrefectureCatalogTest extends TestCase
         self::assertSame('東京支店', $catalog->branchName('TOKYO'));
         self::assertSame('東京都', $catalog->label('TOKYO', 'ja'));
         self::assertSame('Tokyo', $catalog->label('TOKYO', 'en'));
+        self::assertSame('東京支店', $catalog->branchLabel('TOKYO', 'ja'));
+        self::assertSame('Tokyo Branch', $catalog->branchLabel('TOKYO', 'en'));
     }
 
     public function testCatalogRejectsUnsupportedValues(): void
@@ -29,5 +31,6 @@ final class PrefectureCatalogTest extends TestCase
         self::assertFalse($catalog->contains('NOT_A_PREFECTURE'));
         self::assertNull($catalog->find('NOT_A_PREFECTURE'));
         self::assertNull($catalog->branchName('NOT_A_PREFECTURE'));
+        self::assertNull($catalog->branchLabel('NOT_A_PREFECTURE', 'en'));
     }
 }

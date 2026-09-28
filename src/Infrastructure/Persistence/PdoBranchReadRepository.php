@@ -22,6 +22,15 @@ final class PdoBranchReadRepository implements BranchReadRepositoryInterface
         return $statement->fetchAll();
     }
 
+    public function listForSearch(): array
+    {
+        $statement = $this->connection->get()->query(
+            'SELECT id, code, name, city, status FROM branches ORDER BY name ASC, id ASC',
+        );
+
+        return $statement->fetchAll();
+    }
+
     public function findById(int $id): ?array
     {
         $statement = $this->connection->get()->prepare(
