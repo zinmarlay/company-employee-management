@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Database;
 
 use App\Application\DTO\BranchInput;
+use App\Application\DTO\BranchMetadataInput;
 use App\Application\DTO\DepartmentInput;
 use App\Bootstrap\Configuration;
 use App\Database\ConnectionFactory;
@@ -114,6 +115,20 @@ final class OrganizationRepositoryIntegrationTest extends TestCase
 
         $this->expectException(DepartmentDuplicateException::class);
         $this->departments()->insert(new DepartmentInput($branchId, 'DEV', 'Duplicate', null), '2026-09-25 00:00:00', '2026-09-25 00:00:00');
+    }
+
+    public function testBranchUpdateChangesMetadataWithoutChangingIdentity(): void
+    {
+        $companyId = $this->insertCompany('COMPANY-METADATA');
+        $branchId = $this->branches()->insert(new BranchInput($companyId, 'TOKYO', '東京支店', '東京都', '東京都千代田区', '03-0000-0000'), '2026-09-25 00:00:00', '2026-09-25 00:00:00');
+
+        $this->branches()->updateMetadata($branchId, new BranchMetadataInput('新宿区', '東京都新宿区', '03-9999-9999'), '2026-09-25 01:00:00');
+        $branch = $this->branches()->findById($branchId);
+
+        self::assertSame('TOKYO', $branch['code']);
+        self::assertSame('東京支店', $branch['name']);
+        self::assertSame('新宿区', $branch['city']);
+        self::assertSame('東京都新宿区', $branch['address']);
     }
 
     private function insertCompany(string $code): int

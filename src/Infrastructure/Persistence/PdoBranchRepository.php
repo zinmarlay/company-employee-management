@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Persistence;
 
 use App\Application\DTO\BranchInput;
+use App\Application\DTO\BranchMetadataInput;
 use App\Database\LazyPdoConnection;
 use App\Domain\Organization\BranchDuplicateException;
 use App\Domain\Organization\BranchRepositoryInterface;
@@ -116,18 +117,16 @@ final class PdoBranchRepository implements BranchRepositoryInterface
         return (int) $this->connection->get()->lastInsertId();
     }
 
-    public function update(int $id, BranchInput $input, string $updatedAt): void
+    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): void
     {
         $statement = $this->connection->get()->prepare(
-            'UPDATE branches SET code = :code, name = :name, city = :city, address = :address, '
+            'UPDATE branches SET city = :city, address = :address, '
             . 'phone = :phone, updated_at = :updated_at WHERE id = :id',
         );
 
         try {
             $statement->execute([
                 'id' => $id,
-                'code' => $input->code,
-                'name' => $input->name,
                 'city' => $input->city,
                 'address' => $input->address,
                 'phone' => $input->phone,

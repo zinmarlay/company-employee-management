@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Database\Seed;
 
 use App\Application\Support\Clock;
+use App\Domain\Organization\PrefectureCatalog;
 use PDO;
 use Throwable;
 
@@ -27,6 +28,7 @@ final class DevelopmentSeeder
     public function __construct(
         private readonly PDO $pdo,
         private readonly Clock $clock,
+        private readonly ?PrefectureCatalog $prefectures = null,
     ) {
     }
 
@@ -118,11 +120,17 @@ final class DevelopmentSeeder
     private function upsertBranches(int $companyId, string $timestamp): void
     {
         $branches = [
-            'TOKYO' => ['東京支店', '東京都', '東京都千代田区丸の内1-1-1', '03-1234-5678'],
-            'OSAKA' => ['大阪支店', '大阪府', '大阪府大阪市北区梅田1-1-1', '06-1234-5678'],
+            'TOKYO' => ['東京都', '東京都千代田区丸の内1-1-1', '03-1234-5678'],
+            'OSAKA' => ['大阪府', '大阪府大阪市北区梅田1-1-1', '06-1234-5678'],
         ];
 
-        foreach ($branches as $code => [$name, $city, $address, $phone]) {
+        $catalog = $this->prefectures ?? new PrefectureCatalog();
+        foreach ($branches as $code => [$city, $address, $phone]) {
+            $prefecture = $catalog->find($code);
+            if ($prefecture === null) {
+                throw new DevelopmentSeedException('Seed branch code is not present in the prefecture catalog: ' . $code);
+            }
+            $name = $prefecture['branch_name'];
             $existing = $this->fetchOne(
                 'SELECT id, code, name, city, address, phone, status FROM branches '
                 . 'WHERE company_id = :company_id AND code = :code',

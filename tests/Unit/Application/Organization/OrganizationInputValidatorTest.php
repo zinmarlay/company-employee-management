@@ -10,28 +10,27 @@ use PHPUnit\Framework\TestCase;
 
 final class OrganizationInputValidatorTest extends TestCase
 {
-    public function testBranchValidatorNormalizesAValidBranch(): void
+    public function testBranchValidatorNormalizesAValidBranchCreationRequest(): void
     {
         $result = (new BranchInputValidator())->validate([
             'company_id' => '1',
-            'code' => ' TOKYO ',
-            'name' => ' 東京支店 ',
-            'city' => '東京都',
+            'prefecture_code' => ' tokyo ',
+            'city' => '新宿区',
             'address' => '東京都千代田区1-1-1',
             'phone' => '03-1234-5678',
         ]);
 
         self::assertTrue($result->isValid());
         self::assertSame(1, $result->input?->companyId);
-        self::assertSame('TOKYO', $result->input?->code);
+        self::assertSame('tokyo', $result->input?->prefectureCode);
+        self::assertSame('新宿区', $result->input?->city);
     }
 
     public function testBranchValidatorRejectsMissingAndOverLengthFields(): void
     {
         $result = (new BranchInputValidator())->validate([
             'company_id' => '',
-            'code' => str_repeat('x', 31),
-            'name' => '',
+            'prefecture_code' => str_repeat('x', 31),
             'city' => '',
             'address' => '',
             'phone' => '',
@@ -39,8 +38,7 @@ final class OrganizationInputValidatorTest extends TestCase
 
         self::assertFalse($result->isValid());
         self::assertArrayHasKey('company_id', $result->errors);
-        self::assertSame('This field must be 30 characters or fewer.', $result->errors['code']);
-        self::assertArrayHasKey('name', $result->errors);
+        self::assertSame('This field must be 30 characters or fewer.', $result->errors['prefecture_code']);
     }
 
     public function testDepartmentValidatorPreservesOptionalDescriptionAsNullWhenBlank(): void

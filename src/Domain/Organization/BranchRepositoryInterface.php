@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Organization;
 
 use App\Application\DTO\BranchInput;
+use App\Application\DTO\BranchMetadataInput;
 
 interface BranchRepositoryInterface
 {
@@ -27,7 +28,7 @@ interface BranchRepositoryInterface
 
     public function insert(BranchInput $input, string $createdAt, string $updatedAt): int;
 
-    public function update(int $id, BranchInput $input, string $updatedAt): void;
+    public function updateMetadata(int $id, BranchMetadataInput $input, string $updatedAt): void;
 
     public function deactivate(int $id, string $updatedAt): bool;
 }

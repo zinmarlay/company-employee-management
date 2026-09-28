@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Application\Validation;
 
-use App\Application\DTO\BranchInput;
+use App\Application\DTO\BranchCreateInput;
+use App\Application\DTO\BranchMetadataInput;
 
 final class BranchInputValidator
 {
@@ -14,18 +15,34 @@ final class BranchInputValidator
         $values = [];
         $errors = [];
         $companyId = $this->requiredPositiveInteger($rawInput, 'company_id', $values, $errors);
-        $code = $this->requiredString($rawInput, 'code', 30, $values, $errors);
-        $name = $this->requiredString($rawInput, 'name', 160, $values, $errors);
+        $prefectureCode = $this->requiredString($rawInput, 'prefecture_code', 30, $values, $errors);
         $city = $this->requiredString($rawInput, 'city', 120, $values, $errors);
         $address = $this->requiredString($rawInput, 'address', 500, $values, $errors);
         $phone = $this->requiredString($rawInput, 'phone', 32, $values, $errors);
 
         $input = null;
         if ($errors === []) {
-            $input = new BranchInput($companyId, $code, $name, $city, $address, $phone);
+            $input = new BranchCreateInput($companyId, $prefectureCode, $city, $address, $phone);
         }
 
         return new BranchValidationResult($values, $input, $errors);
+    }
+
+    /** @param array<string, mixed> $rawInput */
+    public function validateMetadata(array $rawInput): BranchMetadataValidationResult
+    {
+        $values = [];
+        $errors = [];
+        $city = $this->requiredString($rawInput, 'city', 120, $values, $errors);
+        $address = $this->requiredString($rawInput, 'address', 500, $values, $errors);
+        $phone = $this->requiredString($rawInput, 'phone', 32, $values, $errors);
+
+        $input = null;
+        if ($errors === []) {
+            $input = new BranchMetadataInput($city, $address, $phone);
+        }
+
+        return new BranchMetadataValidationResult($values, $input, $errors);
     }
 
     /** @param array<string, mixed> $input @param array<string, mixed> $values @param array<string, string> $errors */

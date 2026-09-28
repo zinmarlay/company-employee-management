@@ -9,6 +9,7 @@ use App\Bootstrap\EnvironmentLoader;
 use App\Database\ConnectionFactory;
 use App\Database\Seed\DevelopmentSeedSafety;
 use App\Database\Seed\DevelopmentSeeder;
+use App\Domain\Organization\PrefectureCatalog;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -22,6 +23,7 @@ try {
     $result = (new DevelopmentSeeder(
         (new ConnectionFactory($database))->create(),
         new SystemClock(),
+        new PrefectureCatalog(),
     ))->seed();
 
     fwrite(STDOUT, "Development seed complete.\n");

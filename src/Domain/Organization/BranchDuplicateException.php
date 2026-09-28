@@ -10,6 +10,6 @@ final class BranchDuplicateException extends RuntimeException
 {
     public function __construct(int $code = 0, ?\Throwable $previous = null)
     {
-        parent::__construct('A branch with this code already exists for the selected company.', $code, $previous);
+        parent::__construct('A branch with this prefecture already exists for the selected company.', $code, $previous);
     }
 }
