@@ -81,13 +81,17 @@ final class EmployeeController
     public function edit(Request $request): Response
     {
         $id = $this->employeeId($request);
-        $form = $this->employees->editForm($id);
+        $result = $this->employees->editForm($id);
 
-        if ($form === null) {
+        if ($result['status'] === 'missing') {
             throw new NotFoundException($request->path());
         }
 
-        return $this->renderForm($request, $form, 200, 'employees/edit');
+        if ($result['status'] === 'inactive') {
+            return Response::redirect('/employees/' . $id . '?notice=inactive-edit');
+        }
+
+        return $this->renderForm($request, $result['form'] ?? [], 200, 'employees/edit');
     }
 
     public function update(Request $request): Response
@@ -95,20 +99,29 @@ final class EmployeeController
         $id = $this->employeeId($request);
         $result = $this->employees->updateEmployee($id, $request->bodyParameters());
 
-        if ($result['id'] === null && $result['errors'] === []) {
+        if ($result['status'] === 'missing') {
             throw new NotFoundException($request->path());
+        }
+
+        if ($result['status'] === 'inactive') {
+            return Response::redirect('/employees/' . $id . '?notice=inactive-edit');
         }
 
         if ($result['success']) {
             return Response::redirect('/employees/' . $id);
         }
 
-        $form = $this->employees->editForm($id);
+        $editResult = $this->employees->editForm($id);
 
-        if ($form === null) {
+        if ($editResult['status'] === 'missing') {
             throw new NotFoundException($request->path());
         }
 
+        if ($editResult['status'] === 'inactive') {
+            return Response::redirect('/employees/' . $id . '?notice=inactive-edit');
+        }
+
+        $form = $editResult['form'] ?? [];
         $form['values'] = $result['values'];
         $form['errors'] = $result['errors'];
 
@@ -208,7 +221,7 @@ final class EmployeeController
     {
         $notice = $request->query('notice');
 
-        return is_string($notice) && in_array($notice, ['deactivated', 'already-inactive'], true)
+        return is_string($notice) && in_array($notice, ['deactivated', 'already-inactive', 'inactive-edit'], true)
             ? $notice
             : null;
     }

@@ -20,7 +20,8 @@ interface EmployeeRepositoryInterface
 
     public function insert(EmployeeInput $input, string $createdAt, string $updatedAt): int;
 
-    public function update(int $id, EmployeeInput $input, string $updatedAt): void;
+    /** Returns true when an active employee row was updated. */
+    public function update(int $id, EmployeeInput $input, string $updatedAt): bool;
 
     public function deactivate(int $id, string $updatedAt): bool;
 }

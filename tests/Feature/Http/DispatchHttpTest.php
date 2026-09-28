@@ -131,6 +131,6 @@ final class DispatchHttpEmployeeRepository implements EmployeeRepositoryInterfac
     public function employeeCodeExists(string $code, ?int $exceptId = null): bool { return false; }
     public function emailExists(string $email, ?int $exceptId = null): bool { return false; }
     public function insert(EmployeeInput $input, string $createdAt, string $updatedAt): int { return 1; }
-    public function update(int $id, EmployeeInput $input, string $updatedAt): void {}
+    public function update(int $id, EmployeeInput $input, string $updatedAt): bool { return true; }
     public function deactivate(int $id, string $updatedAt): bool { return true; }
 }

@@ -129,27 +129,34 @@ final class EmployeeService
         ];
     }
 
-    /** @return array<string, mixed>|null */
-    public function editForm(int $id): ?array
+    /** @return array{status: string, form: array<string, mixed>|null} */
+    public function editForm(int $id): array
     {
         $employee = $this->employees->findById($id);
 
         if ($employee === null) {
-            return null;
+            return ['status' => 'missing', 'form' => null];
         }
 
-        return $this->formData(
-            $this->valuesFromEmployee($employee),
-            [],
-            $employee,
-            'edit',
-            $id,
-        );
+        if ((string) ($employee['status'] ?? '') !== 'active') {
+            return ['status' => 'inactive', 'form' => null];
+        }
+
+        return [
+            'status' => 'editable',
+            'form' => $this->formData(
+                $this->valuesFromEmployee($employee),
+                [],
+                $employee,
+                'edit',
+                $id,
+            ),
+        ];
     }
 
     /**
      * @param array<string, mixed> $rawInput
-     * @return array{success: bool, id: int|null, values: array<string, mixed>, errors: array<string, string>}
+     * @return array{success: bool, id: int|null, values: array<string, mixed>, errors: array<string, string>, status: string}
      */
     public function updateEmployee(int $id, array $rawInput): array
     {
@@ -161,6 +168,17 @@ final class EmployeeService
                 'id' => null,
                 'values' => [],
                 'errors' => [],
+                'status' => 'missing',
+            ];
+        }
+
+        if ((string) ($current['status'] ?? '') !== 'active') {
+            return [
+                'success' => false,
+                'id' => $id,
+                'values' => [],
+                'errors' => [],
+                'status' => 'inactive',
             ];
         }
 
@@ -172,6 +190,7 @@ final class EmployeeService
                 'id' => $id,
                 'values' => $validation->values,
                 'errors' => $validation->errors,
+                'status' => 'invalid',
             ];
         }
 
@@ -183,17 +202,29 @@ final class EmployeeService
                 'id' => $id,
                 'values' => $validation->values,
                 'errors' => $errors,
+                'status' => 'invalid',
             ];
         }
 
         try {
-            $this->employees->update($id, $validation->input, $this->now());
+            $updated = $this->employees->update($id, $validation->input, $this->now());
         } catch (EmployeeDuplicateException $exception) {
             return [
                 'success' => false,
                 'id' => $id,
                 'values' => $validation->values,
                 'errors' => [$exception->field => $this->duplicateMessage($exception->field)],
+                'status' => 'invalid',
+            ];
+        }
+
+        if (!$updated) {
+            return [
+                'success' => false,
+                'id' => $id,
+                'values' => [],
+                'errors' => [],
+                'status' => 'inactive',
             ];
         }
 
@@ -202,6 +233,7 @@ final class EmployeeService
             'id' => $id,
             'values' => $validation->values,
             'errors' => [],
+            'status' => 'updated',
         ];
     }
 
@@ -224,7 +256,13 @@ final class EmployeeService
             return ['status' => 'already-inactive', 'employee' => $employee];
         }
 
-        $this->employees->deactivate($id, $this->now());
+        if (!$this->employees->deactivate($id, $this->now())) {
+            $current = $this->employees->findById($id);
+
+            return $current === null
+                ? ['status' => 'missing', 'employee' => null]
+                : ['status' => 'already-inactive', 'employee' => $current];
+        }
 
         return [
             'status' => 'deactivated',

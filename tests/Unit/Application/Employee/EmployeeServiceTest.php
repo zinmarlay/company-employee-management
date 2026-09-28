@@ -63,6 +63,78 @@ final class EmployeeServiceTest extends TestCase
         self::assertSame(0, $employees->deactivationCount);
     }
 
+    public function testActiveEmployeeEditFormIsAvailable(): void
+    {
+        $service = $this->service(new InMemoryEmployeeRepository());
+
+        $result = $service->editForm(1);
+
+        self::assertSame('editable', $result['status']);
+        self::assertIsArray($result['form']);
+        self::assertSame('EMP000001', $result['form']['employeeCode']);
+    }
+
+    public function testInactiveEmployeeEditFormIsRejectedBeforeFormConstruction(): void
+    {
+        $employees = new InMemoryEmployeeRepository();
+        $employees->rows[1]['status'] = 'inactive';
+        $service = $this->service($employees);
+
+        $result = $service->editForm(1);
+
+        self::assertSame('inactive', $result['status']);
+        self::assertNull($result['form']);
+    }
+
+    public function testInactiveEmployeeUpdateIsRejectedWithoutChangingData(): void
+    {
+        $employees = new InMemoryEmployeeRepository();
+        $employees->rows[1]['status'] = 'inactive';
+        $before = $employees->rows[1];
+        $service = $this->service($employees);
+
+        $result = $service->updateEmployee(1, $this->validInput([
+            'first_name' => 'Malicious',
+            'email' => 'valid@example.test',
+        ]));
+
+        self::assertFalse($result['success']);
+        self::assertSame('inactive', $result['status']);
+        self::assertSame($before, $employees->rows[1]);
+        self::assertSame(0, $employees->updateCount);
+    }
+
+    public function testConditionalUpdateFailureIsMappedToInactive(): void
+    {
+        $employees = new InMemoryEmployeeRepository();
+        $employees->deactivateDuringUpdate = true;
+        $service = $this->service($employees);
+
+        $result = $service->updateEmployee(1, $this->validInput([
+            'first_name' => 'Stale form',
+            'email' => 'stale@example.test',
+        ]));
+
+        self::assertFalse($result['success']);
+        self::assertSame('inactive', $result['status']);
+        self::assertSame('inactive', $employees->rows[1]['status']);
+        self::assertSame('Existing', $employees->rows[1]['first_name']);
+        self::assertSame('2026-01-01 00:00:00', $employees->rows[1]['updated_at']);
+    }
+
+    public function testRacingDeactivationIsReportedAsAlreadyInactive(): void
+    {
+        $employees = new InMemoryEmployeeRepository();
+        $employees->deactivateDuringDeactivation = true;
+        $service = $this->service($employees);
+
+        $result = $service->deactivateEmployee(1);
+
+        self::assertSame('already-inactive', $result['status']);
+        self::assertSame('inactive', $employees->rows[1]['status']);
+        self::assertSame('2026-01-01 00:00:00', $employees->rows[1]['updated_at']);
+    }
+
     /**
      * @param array<string, mixed> $overrides
      */
@@ -169,6 +241,9 @@ final class InMemoryEmployeeRepository implements EmployeeRepositoryInterface
     /** @var array<int, array<string, mixed>> */
     public array $inserted = [];
     public int $deactivationCount = 0;
+    public int $updateCount = 0;
+    public bool $deactivateDuringUpdate = false;
+    public bool $deactivateDuringDeactivation = false;
 
     public function listBasic(int $limit): array
     {
@@ -220,13 +295,29 @@ final class InMemoryEmployeeRepository implements EmployeeRepositoryInterface
         return 2;
     }
 
-    public function update(int $id, EmployeeInput $input, string $updatedAt): void
+    public function update(int $id, EmployeeInput $input, string $updatedAt): bool
     {
+        $this->updateCount++;
+
+        if ($this->deactivateDuringUpdate) {
+            $this->rows[$id]['status'] = 'inactive';
+
+            return false;
+        }
+
         $this->rows[$id]['updated_at'] = $updatedAt;
+
+        return true;
     }
 
     public function deactivate(int $id, string $updatedAt): bool
     {
+        if ($this->deactivateDuringDeactivation) {
+            $this->rows[$id]['status'] = 'inactive';
+
+            return false;
+        }
+
         if (($this->rows[$id]['status'] ?? null) !== 'active') {
             return false;
         }

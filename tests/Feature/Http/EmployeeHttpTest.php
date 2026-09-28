@@ -15,9 +15,11 @@ use App\Domain\Organization\DepartmentReadRepositoryInterface;
 use App\Http\Controllers\EmployeeController;
 use App\Http\ExceptionResponder;
 use App\Http\HttpKernel;
+use App\Http\Middleware\LocaleMiddleware;
 use App\Http\Request;
 use App\Http\Routing\Router;
 use App\Http\View\ViewRenderer;
+use App\Localization\Translator;
 use DateTimeImmutable;
 use DateTimeZone;
 use PHPUnit\Framework\TestCase;
@@ -144,6 +146,95 @@ final class EmployeeHttpTest extends TestCase
         self::assertSame('/employees/1?notice=deactivated', $deactivated->header('Location'));
     }
 
+    public function testInactiveEmployeeOnlyExposesReadActionsAndRemainsReadable(): void
+    {
+        $kernel = $this->kernel();
+
+        $list = $kernel->handle(Request::fromValues('GET', '/employees'));
+        $detail = $kernel->handle(Request::fromValues('GET', '/employees/3'));
+
+        self::assertSame(200, $list->statusCode());
+        self::assertStringContainsString('href="/employees/1/edit"', $list->body());
+        self::assertStringContainsString('href="/employees/1/deactivate"', $list->body());
+        self::assertStringContainsString('EMP000003', $list->body());
+        self::assertStringContainsString('href="/employees/3"', $list->body());
+        self::assertStringNotContainsString('href="/employees/3/edit"', $list->body());
+        self::assertStringNotContainsString('href="/employees/3/deactivate"', $list->body());
+        self::assertStringContainsString('EMP000003', $detail->body());
+        self::assertStringContainsString('Inactive', $detail->body());
+        self::assertStringNotContainsString('href="/employees/3/edit"', $detail->body());
+        self::assertStringNotContainsString('href="/employees/3/deactivate"', $detail->body());
+    }
+
+    public function testInactiveEditAndUpdateRedirectWithLocalizedNoticeWithoutChangingData(): void
+    {
+        $kernel = $this->kernel();
+        $validInput = [
+            'first_name' => 'Changed',
+            'last_name' => 'Inactive',
+            'first_name_kana' => 'CHANGED',
+            'last_name_kana' => 'INACTIVE',
+            'email' => 'changed@example.test',
+            'phone' => '',
+            'position_title' => 'Changed title',
+            'branch_id' => '1',
+            'department_id' => '1',
+            'employee_type' => 'permanent',
+            'hire_date' => '2026-09-24',
+        ];
+
+        $edit = $kernel->handle(Request::fromValues('GET', '/employees/3/edit'));
+        $updated = $kernel->handle(Request::fromValues('POST', '/employees/3', [], $validInput));
+        $detail = $kernel->handle(Request::fromValues('GET', '/employees/3'));
+        $englishNotice = $kernel->handle(Request::fromValues(
+            'GET',
+            '/employees/3',
+            ['notice' => 'inactive-edit'],
+        ));
+        $japanese = $kernel->handle(Request::fromValues(
+            'GET',
+            '/employees/3',
+            ['notice' => 'inactive-edit', 'lang' => 'ja'],
+        ));
+
+        self::assertSame(303, $edit->statusCode());
+        self::assertSame('/employees/3?notice=inactive-edit', $edit->header('Location'));
+        self::assertSame(303, $updated->statusCode());
+        self::assertSame('/employees/3?notice=inactive-edit', $updated->header('Location'));
+        self::assertStringContainsString('Inactive employees cannot be edited.', $englishNotice->body());
+        self::assertStringContainsString('無効な社員は編集できません。', $japanese->body());
+        self::assertStringContainsString('Historical', $detail->body());
+        self::assertStringNotContainsString('Changed title', $detail->body());
+        self::assertStringNotContainsString('changed@example.test', $detail->body());
+    }
+
+    public function testRepeatedInactiveDeactivationDoesNotChangeTimestamp(): void
+    {
+        $kernel = $this->kernel();
+
+        $before = $kernel->handle(Request::fromValues('GET', '/employees/3'));
+        $response = $kernel->handle(Request::fromValues('POST', '/employees/3/deactivate'));
+        $after = $kernel->handle(Request::fromValues('GET', '/employees/3'));
+
+        self::assertSame(303, $response->statusCode());
+        self::assertSame('/employees/3?notice=already-inactive', $response->header('Location'));
+        self::assertSame($this->between($before->body(), 'Updated', '</dd>'), $this->between($after->body(), 'Updated', '</dd>'));
+    }
+
+    private function between(string $haystack, string $start, string $end): string
+    {
+        $startPosition = strpos($haystack, $start);
+        if ($startPosition === false) {
+            return '';
+        }
+
+        $endPosition = strpos($haystack, $end, $startPosition);
+
+        return $endPosition === false
+            ? substr($haystack, $startPosition)
+            : substr($haystack, $startPosition, $endPosition - $startPosition);
+    }
+
     public function testEmployeeRouteUnsupportedMethodsReturn405(): void
     {
         $response = $this->kernel()->handle(Request::fromValues('PUT', '/employees'));
@@ -158,7 +249,8 @@ final class EmployeeHttpTest extends TestCase
             'APP_ENV' => 'local',
             'APP_DEBUG' => false,
         ]);
-        $views = new ViewRenderer(dirname(__DIR__, 3) . '/resources/views');
+        $translator = new Translator(dirname(__DIR__, 3) . '/resources/lang');
+        $views = new ViewRenderer(dirname(__DIR__, 3) . '/resources/views', $translator);
         $service = new EmployeeService(
             new HttpEmployeeRepository(),
             new HttpBranchRepository(),
@@ -177,7 +269,7 @@ final class EmployeeHttpTest extends TestCase
         $router->post('/employees/{id}', [$controller, 'update']);
         $router->get('/employees/{id}', [$controller, 'show']);
 
-        return new HttpKernel($router, [], new ExceptionResponder(false));
+        return new HttpKernel($router, [new LocaleMiddleware($translator)], new ExceptionResponder(false));
     }
 }
 
@@ -247,6 +339,30 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
             'department_name' => '<Engineering>',
             'department_status' => 'active',
         ],
+        3 => [
+            'id' => 3,
+            'branch_id' => 1,
+            'department_id' => 1,
+            'employee_code' => 'EMP000003',
+            'first_name' => 'Historical',
+            'last_name' => 'Employee',
+            'first_name_kana' => 'HISTORICAL',
+            'last_name_kana' => 'EMPLOYEE',
+            'email' => 'historical@example.test',
+            'phone' => '03-0000-0003',
+            'position_title' => 'Former Engineer',
+            'employee_type' => 'permanent',
+            'hire_date' => '2025-01-01',
+            'status' => 'inactive',
+            'created_at' => '2025-01-01 00:00:00',
+            'updated_at' => '2026-01-01 00:00:00',
+            'branch_code' => 'TOKYO',
+            'branch_name' => 'Tokyo',
+            'branch_status' => 'active',
+            'department_code' => 'ENG',
+            'department_name' => 'Engineering',
+            'department_status' => 'active',
+        ],
     ];
     private int $nextId = 2;
     private int $nextEmployeeCode = 2;
@@ -307,8 +423,12 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
         return $id;
     }
 
-    public function update(int $id, EmployeeInput $input, string $updatedAt): void
+    public function update(int $id, EmployeeInput $input, string $updatedAt): bool
     {
+        if (($this->rows[$id]['status'] ?? null) !== 'active') {
+            return false;
+        }
+
         $current = $this->rows[$id];
         $this->rows[$id] = array_replace(
             $current,
@@ -319,6 +439,8 @@ final class HttpEmployeeRepository implements EmployeeRepositoryInterface
                 'updated_at' => $updatedAt,
             ],
         );
+
+        return true;
     }
 
     public function deactivate(int $id, string $updatedAt): bool

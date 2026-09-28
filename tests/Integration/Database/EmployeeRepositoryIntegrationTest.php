@@ -172,7 +172,7 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
         self::assertSame('EMP000002', $limitedRows[0]['employee_code']);
         self::assertSame('EMP000003', $limitedRows[1]['employee_code']);
 
-        $repository->update(
+        self::assertTrue($repository->update(
             $firstId,
             $this->input([
                 'branchId' => $tokyoBranchId,
@@ -183,7 +183,7 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
                 'hireDate' => '2026-10-01',
             ]),
             '2026-09-24 02:02:03',
-        );
+        ));
         $updated = $repository->findById($firstId);
         self::assertNotNull($updated);
         self::assertSame('EMP000001', $updated['employee_code']);
@@ -239,6 +239,24 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
         $stillInactive = $repository->findById($thirdId);
         self::assertNotNull($stillInactive);
         self::assertSame('2026-09-24 04:00:00', $stillInactive['updated_at']);
+        self::assertFalse($repository->update(
+            $thirdId,
+            $this->input([
+                'branchId' => $tokyoBranchId,
+                'departmentId' => null,
+                'firstName' => 'Should not change',
+                'lastName' => 'Inactive',
+                'email' => 'inactive-update-' . $suffix . '@example.test',
+                'hireDate' => '2026-11-01',
+            ]),
+            '2026-09-24 06:00:00',
+        ));
+        $stillInactiveAfterUpdate = $repository->findById($thirdId);
+        self::assertNotNull($stillInactiveAfterUpdate);
+        self::assertSame('EMP000003', $stillInactiveAfterUpdate['employee_code']);
+        self::assertSame('Zed', $stillInactiveAfterUpdate['first_name']);
+        self::assertSame('Alpha', $stillInactiveAfterUpdate['last_name']);
+        self::assertSame('2026-09-24 04:00:00', $stillInactiveAfterUpdate['updated_at']);
     }
 
     public function testGeneratedCodeRollbackAndExhaustionAreSafe(): void

@@ -125,7 +125,7 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
         }
     }
 
-    public function update(int $id, EmployeeInput $input, string $updatedAt): void
+    public function update(int $id, EmployeeInput $input, string $updatedAt): bool
     {
         $statement = $this->connection->get()->prepare(
             'UPDATE employees SET '
@@ -135,7 +135,7 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
             . 'last_name_kana = :last_name_kana, email = :email, phone = :phone, '
             . 'position_title = :position_title, employee_type = :employee_type, '
             . 'hire_date = :hire_date, updated_at = :updated_at '
-            . 'WHERE id = :id',
+            . "WHERE id = :id AND status = 'active'",
         );
 
         try {
@@ -158,6 +158,8 @@ final class PdoEmployeeRepository implements EmployeeRepositoryInterface
             $this->throwKnownDuplicate($exception);
             throw $exception;
         }
+
+        return $statement->rowCount() > 0;
     }
 
     public function deactivate(int $id, string $updatedAt): bool

@@ -183,6 +183,7 @@ return [
         'already_inactive' => 'This employee is already inactive.',
         'deactivated_success' => 'Employee deactivated successfully.',
         'already_inactive_notice' => 'Employee was already inactive.',
+        'inactive_edit_notice' => 'Inactive employees cannot be edited.',
     ],
     'form' => [
         'employee_information' => 'Employee information',

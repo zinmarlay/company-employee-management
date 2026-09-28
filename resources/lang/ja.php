@@ -183,6 +183,7 @@ return [
         'already_inactive' => 'この社員はすでに無効です。',
         'deactivated_success' => '社員を無効化しました。',
         'already_inactive_notice' => 'この社員はすでに無効でした。',
+        'inactive_edit_notice' => '無効な社員は編集できません。',
     ],
     'form' => [
         'employee_information' => '社員情報',

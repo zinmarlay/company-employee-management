@@ -17,8 +17,14 @@ $fullName = ($employee['last_name'] ?? '') . ' ' . ($employee['first_name'] ?? '
     $data['pageDescriptionKey'] = 'employees.profile_description';
     $data['pageActions'] = [
         ['href' => '/employees', 'labelKey' => 'actions.back_to_employees', 'variant' => 'text'],
-        ['href' => '/employees/' . $id . '/edit', 'labelKey' => 'actions.edit_employee', 'variant' => 'secondary'],
     ];
+    if (($employee['status'] ?? null) === 'active') {
+        $data['pageActions'][] = [
+            'href' => '/employees/' . $id . '/edit',
+            'labelKey' => 'actions.edit_employee',
+            'variant' => 'secondary',
+        ];
+    }
     include __DIR__ . '/../partials/page-header.php';
     ?>
 
@@ -26,6 +32,8 @@ $fullName = ($employee['last_name'] ?? '') . ' ' . ($employee['first_name'] ?? '
         <div class="alert alert--success" role="status"><?= HtmlEscaper::escape($t('employees.deactivated_success')) ?></div>
     <?php elseif ($notice === 'already-inactive'): ?>
         <div class="alert alert--info" role="status"><?= HtmlEscaper::escape($t('employees.already_inactive_notice')) ?></div>
+    <?php elseif ($notice === 'inactive-edit'): ?>
+        <div class="alert alert--info" role="status"><?= HtmlEscaper::escape($t('employees.inactive_edit_notice')) ?></div>
     <?php endif; ?>
 
     <div class="profile-summary card">
