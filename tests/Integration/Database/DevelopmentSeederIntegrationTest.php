@@ -53,7 +53,7 @@ final class DevelopmentSeederIntegrationTest extends TestCase
 
         $this->resetSchema();
         $runner = new MigrationRunner($this->pdo, new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'));
-        self::assertSame(6, $runner->migrate());
+        self::assertSame(7, $runner->migrate());
     }
 
     protected function tearDown(): void
@@ -112,6 +112,35 @@ final class DevelopmentSeederIntegrationTest extends TestCase
         )->fetchColumn());
         self::assertSame(1, $this->countWhere('dispatch_contracts', "start_date = '2025-01-01' AND end_date = '2025-03-31'"));
         self::assertSame(0, $this->countWhere('dispatch_contracts', 'start_date > end_date'));
+
+        self::assertSame(7, $this->tableCount('skills'));
+        self::assertSame(15, $this->tableCount('employee_skills'));
+        self::assertSame(4, $this->tableCount('employee_projects'));
+        self::assertSame(5, $this->tableCount('employee_certifications'));
+        self::assertSame(7, (int) $this->pdo()->query(
+            "SELECT COUNT(*) FROM skills WHERE name IN ('PHP', 'Laravel', 'JavaScript', 'MySQL', 'React', 'AWS', 'Git')",
+        )->fetchColumn());
+        self::assertSame(1, $this->countWhere('skills', "name = 'PHP'"));
+        self::assertSame(3, (int) $this->pdo()->query(
+            "SELECT COUNT(*) FROM employee_skills es INNER JOIN skills s ON s.id = es.skill_id WHERE s.name = 'PHP'",
+        )->fetchColumn());
+        self::assertSame(3, (int) $this->pdo()->query(
+            "SELECT COUNT(DISTINCT es.employee_id) FROM employee_skills es INNER JOIN skills s ON s.id = es.skill_id WHERE s.name = 'PHP'",
+        )->fetchColumn());
+        self::assertSame(1, $this->countWhere('employee_projects', "project_name = 'Internal Sales Management System' AND end_date IS NULL"));
+        self::assertSame(0, $this->countWhere('employee_projects', 'start_date > end_date'));
+        self::assertSame(0, $this->countWhere('employee_skills', "status = 'active' AND archived_at IS NOT NULL"));
+        self::assertSame(0, $this->countWhere('employee_projects', "status = 'active' AND archived_at IS NOT NULL"));
+        self::assertSame(0, $this->countWhere('employee_certifications', "status = 'active' AND archived_at IS NOT NULL"));
+        self::assertSame(0, (int) $this->pdo()->query(
+            'SELECT COUNT(*) FROM employee_skills a INNER JOIN employee_skills b '
+            . 'ON a.employee_id = b.employee_id AND a.skill_id = b.skill_id AND a.id < b.id',
+        )->fetchColumn());
+        self::assertSame(0, (int) $this->pdo()->query(
+            'SELECT COUNT(*) FROM employee_certifications a INNER JOIN employee_certifications b '
+            . 'ON a.employee_id = b.employee_id AND a.certification_name = b.certification_name '
+            . 'AND a.issuing_organization = b.issuing_organization AND a.obtained_date = b.obtained_date AND a.id < b.id',
+        )->fetchColumn());
     }
 
     private function insertUnrelatedCompany(): void
@@ -164,6 +193,10 @@ final class DevelopmentSeederIntegrationTest extends TestCase
 
     private function resetSchema(): void
     {
+        $this->pdo?->exec('DROP TABLE IF EXISTS employee_certifications');
+        $this->pdo?->exec('DROP TABLE IF EXISTS employee_projects');
+        $this->pdo?->exec('DROP TABLE IF EXISTS employee_skills');
+        $this->pdo?->exec('DROP TABLE IF EXISTS skills');
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_contracts');
         $this->pdo?->exec('DROP TABLE IF EXISTS dispatch_companies');
         $this->pdo?->exec('DROP TABLE IF EXISTS employee_code_sequences');

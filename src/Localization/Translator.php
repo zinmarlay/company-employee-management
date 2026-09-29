@@ -87,6 +87,12 @@ final class Translator
             'The branch, department code, department name, and status cannot be changed here.' => 'validation.department_identity_immutable',
             'A branch with this code already exists for the selected company.' => 'validation.duplicate_branch_code',
             'A department with this code already exists for the selected branch.' => 'validation.duplicate_department_code',
+            'Select a valid proficiency level.' => 'validation.proficiency',
+            'Enter a number between 0 and 99.9 with at most one decimal place.' => 'validation.years_experience',
+            'Obtained date must be on or before expiration date.' => 'validation.certification_date_order',
+            'Expiration date must be on or after obtained date.' => 'validation.certification_date_order_end',
+            'This Employee already has this skill.' => 'validation.duplicate_skill',
+            'This certification already exists for this Employee and obtained date.' => 'validation.duplicate_certification',
         ];
 
         if (isset($directMessages[$message])) {

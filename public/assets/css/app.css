@@ -886,6 +886,43 @@ a.nav-item:hover,
     grid-column: span 2;
 }
 
+.portfolio-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.portfolio-summary-item {
+    padding: 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface-muted);
+}
+
+.portfolio-summary-item__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.portfolio-summary-item__header h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.portfolio-summary-item__count {
+    color: var(--color-primary-dark);
+    font-size: 1.45rem;
+    line-height: 1;
+}
+
+.portfolio-summary-item__link {
+    margin-top: 16px;
+    padding-left: 0;
+}
+
 .detail-list {
     margin: 22px 0 0;
 }
@@ -1034,7 +1071,8 @@ a.nav-item:hover,
     }
 
     .form-grid,
-    .detail-grid {
+    .detail-grid,
+    .portfolio-summary-grid {
         grid-template-columns: 1fr;
     }
 

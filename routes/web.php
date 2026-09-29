@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeSkillController;
+use App\Http\Controllers\EmployeeProjectController;
+use App\Http\Controllers\EmployeeCertificationController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DispatchCompanyController;
@@ -18,6 +21,9 @@ return static function (
     DepartmentController $departmentController,
     DispatchCompanyController $dispatchCompanyController,
     DispatchContractController $dispatchContractController,
+    EmployeeSkillController $skillController,
+    EmployeeProjectController $projectController,
+    EmployeeCertificationController $certificationController,
 ): void {
     $router->get('/', $setupController);
     $router->get('/employees', [$employeeController, 'index']);
@@ -25,6 +31,32 @@ return static function (
     $router->post('/employees', [$employeeController, 'store']);
     $router->get('/employees/{id}/deactivate', [$employeeController, 'deactivateConfirmation']);
     $router->post('/employees/{id}/deactivate', [$employeeController, 'deactivate']);
+
+    $router->get('/employees/{employeeId}/skills', [$skillController, 'index']);
+    $router->get('/employees/{employeeId}/skills/create', [$skillController, 'create']);
+    $router->post('/employees/{employeeId}/skills', [$skillController, 'store']);
+    $router->get('/employees/{employeeId}/skills/{skillId}/edit', [$skillController, 'edit']);
+    $router->post('/employees/{employeeId}/skills/{skillId}', [$skillController, 'update']);
+    $router->get('/employees/{employeeId}/skills/{skillId}/archive', [$skillController, 'archiveConfirmation']);
+    $router->post('/employees/{employeeId}/skills/{skillId}/archive', [$skillController, 'archive']);
+
+    $router->get('/employees/{employeeId}/projects', [$projectController, 'index']);
+    $router->get('/employees/{employeeId}/projects/create', [$projectController, 'create']);
+    $router->post('/employees/{employeeId}/projects', [$projectController, 'store']);
+    $router->get('/employees/{employeeId}/projects/{projectId}', [$projectController, 'show']);
+    $router->get('/employees/{employeeId}/projects/{projectId}/edit', [$projectController, 'edit']);
+    $router->post('/employees/{employeeId}/projects/{projectId}', [$projectController, 'update']);
+    $router->get('/employees/{employeeId}/projects/{projectId}/archive', [$projectController, 'archiveConfirmation']);
+    $router->post('/employees/{employeeId}/projects/{projectId}/archive', [$projectController, 'archive']);
+
+    $router->get('/employees/{employeeId}/certifications', [$certificationController, 'index']);
+    $router->get('/employees/{employeeId}/certifications/create', [$certificationController, 'create']);
+    $router->post('/employees/{employeeId}/certifications', [$certificationController, 'store']);
+    $router->get('/employees/{employeeId}/certifications/{certificationId}', [$certificationController, 'show']);
+    $router->get('/employees/{employeeId}/certifications/{certificationId}/edit', [$certificationController, 'edit']);
+    $router->post('/employees/{employeeId}/certifications/{certificationId}', [$certificationController, 'update']);
+    $router->get('/employees/{employeeId}/certifications/{certificationId}/archive', [$certificationController, 'archiveConfirmation']);
+    $router->post('/employees/{employeeId}/certifications/{certificationId}/archive', [$certificationController, 'archive']);
     $router->get('/employees/{id}/edit', [$employeeController, 'edit']);
     $router->post('/employees/{id}', [$employeeController, 'update']);
     $router->get('/employees/{id}', [$employeeController, 'show']);

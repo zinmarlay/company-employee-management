@@ -96,6 +96,39 @@ $fullName = ($employee['last_name'] ?? '') . ' ' . ($employee['first_name'] ?? '
         </article>
     </div>
 
+    <?php $portfolio = is_array($data['portfolioSummary'] ?? null) ? $data['portfolioSummary'] : ['skills' => 0, 'projects' => 0, 'certifications' => 0]; ?>
+    <article class="card detail-card">
+        <div class="card-header">
+            <div>
+                <p class="eyebrow"><?= $escape($t('employees.portfolio')) ?></p>
+                <h2><?= $escape($t('employees.portfolio_description')) ?></h2>
+            </div>
+        </div>
+        <div class="portfolio-summary-grid">
+            <div class="portfolio-summary-item">
+                <div class="portfolio-summary-item__header">
+                    <h3><?= $escape($t('portfolio.skills')) ?></h3>
+                    <strong class="portfolio-summary-item__count"><?= $escape((string) ($portfolio['skills'] ?? 0)) ?></strong>
+                </div>
+                <a class="button button--text button--small portfolio-summary-item__link" href="/employees/<?= $id ?>/skills"><?= $escape($t('actions.view_skills')) ?></a>
+            </div>
+            <div class="portfolio-summary-item">
+                <div class="portfolio-summary-item__header">
+                    <h3><?= $escape($t('portfolio.projects')) ?></h3>
+                    <strong class="portfolio-summary-item__count"><?= $escape((string) ($portfolio['projects'] ?? 0)) ?></strong>
+                </div>
+                <a class="button button--text button--small portfolio-summary-item__link" href="/employees/<?= $id ?>/projects"><?= $escape($t('actions.view_projects')) ?></a>
+            </div>
+            <div class="portfolio-summary-item">
+                <div class="portfolio-summary-item__header">
+                    <h3><?= $escape($t('portfolio.certifications')) ?></h3>
+                    <strong class="portfolio-summary-item__count"><?= $escape((string) ($portfolio['certifications'] ?? 0)) ?></strong>
+                </div>
+                <a class="button button--text button--small portfolio-summary-item__link" href="/employees/<?= $id ?>/certifications"><?= $escape($t('actions.view_certifications')) ?></a>
+            </div>
+        </div>
+    </article>
+
     <?php $dispatch = is_array($employee['dispatch'] ?? null) ? $employee['dispatch'] : ['is_dispatched' => false, 'current_contract' => null, 'contract_history' => []]; ?>
     <?php if (($dispatch['is_dispatched'] ?? false) === true): ?>
         <?php $history = is_array($dispatch['contract_history'] ?? null) ? $dispatch['contract_history'] : []; ?>

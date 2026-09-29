@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Bootstrap;
 
 use App\Application\Employee\EmployeeService;
+use App\Application\Employee\EmployeeSkillService;
+use App\Application\Employee\EmployeeProjectService;
+use App\Application\Employee\EmployeeCertificationService;
+use App\Application\Employee\EmployeePortfolioSummaryService;
 use App\Application\Dispatch\ContractExpirationClassifier;
 use App\Application\Dispatch\DispatchCompanyService;
 use App\Application\Dispatch\DispatchContractService;
@@ -17,12 +21,18 @@ use App\Application\Validation\DispatchContractInputValidator;
 use App\Application\Validation\BranchInputValidator;
 use App\Application\Validation\DepartmentInputValidator;
 use App\Application\Validation\EmployeeInputValidator;
+use App\Application\Validation\EmployeeSkillInputValidator;
+use App\Application\Validation\EmployeeProjectInputValidator;
+use App\Application\Validation\EmployeeCertificationInputValidator;
 use App\Domain\Organization\PrefectureCatalog;
 use App\Domain\Organization\DepartmentCatalog;
 use App\Database\LazyPdoConnection;
 use App\Http\ExceptionResponder;
 use App\Http\HttpKernel;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeSkillController;
+use App\Http\Controllers\EmployeeProjectController;
+use App\Http\Controllers\EmployeeCertificationController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DispatchCompanyController;
@@ -34,6 +44,9 @@ use App\Infrastructure\Persistence\PdoBranchRepository;
 use App\Infrastructure\Persistence\PdoDepartmentReadRepository;
 use App\Infrastructure\Persistence\PdoDepartmentRepository;
 use App\Infrastructure\Persistence\PdoEmployeeRepository;
+use App\Infrastructure\Persistence\PdoSkillRepository;
+use App\Infrastructure\Persistence\PdoEmployeeProjectRepository;
+use App\Infrastructure\Persistence\PdoEmployeeCertificationRepository;
 use App\Infrastructure\Persistence\PdoDispatchCompanyRepository;
 use App\Infrastructure\Persistence\PdoDispatchContractRepository;
 use App\Localization\Translator;
@@ -62,8 +75,12 @@ final class ApplicationBootstrap
         $expiration = new ContractExpirationClassifier();
         $clock = new SystemClock();
         $displayNames = new OrganizationDisplayNameResolver(new PrefectureCatalog(), new DepartmentCatalog());
+        $employeeRepository = new PdoEmployeeRepository($connection);
+        $skillRepository = new PdoSkillRepository($connection);
+        $projectRepository = new PdoEmployeeProjectRepository($connection);
+        $certificationRepository = new PdoEmployeeCertificationRepository($connection);
         $employeeService = new EmployeeService(
-            new PdoEmployeeRepository($connection),
+            $employeeRepository,
             new PdoBranchReadRepository($connection),
             new PdoDepartmentReadRepository($connection),
             new EmployeeInputValidator(),
@@ -76,7 +93,14 @@ final class ApplicationBootstrap
             $translator,
             $displayNames,
         );
-        $employeeController = new EmployeeController($viewRenderer, $employeeService, $configuration);
+        $skillService = new EmployeeSkillService($skillRepository, $employeeRepository, new EmployeeSkillInputValidator(), $clock);
+        $projectService = new EmployeeProjectService($projectRepository, $employeeRepository, new EmployeeProjectInputValidator(), $clock);
+        $certificationService = new EmployeeCertificationService($certificationRepository, $employeeRepository, new EmployeeCertificationInputValidator(), $clock);
+        $portfolioSummary = new EmployeePortfolioSummaryService($employeeRepository, $skillRepository, $projectRepository, $certificationRepository);
+        $employeeController = new EmployeeController($viewRenderer, $employeeService, $configuration, $portfolioSummary);
+        $skillController = new EmployeeSkillController($viewRenderer, $skillService);
+        $projectController = new EmployeeProjectController($viewRenderer, $projectService);
+        $certificationController = new EmployeeCertificationController($viewRenderer, $certificationService);
         $branchService = new BranchService($branches, $departments, new BranchInputValidator(), $clock, new PrefectureCatalog(), $displayNames, $translator);
         $departmentService = new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock, new DepartmentCatalog(), $displayNames, $translator);
         $dispatchCompanyService = new DispatchCompanyService(
@@ -89,7 +113,7 @@ final class ApplicationBootstrap
         $dispatchContractService = new DispatchContractService(
             $dispatchContracts,
             $dispatchCompanies,
-            new PdoEmployeeRepository($connection),
+            $employeeRepository,
             new DispatchContractInputValidator(),
             $clock,
             $expiration,
@@ -109,6 +133,9 @@ final class ApplicationBootstrap
             $departmentController,
             $dispatchCompanyController,
             $dispatchContractController,
+            $skillController,
+            $projectController,
+            $certificationController,
         );
 
         return new HttpKernel(

@@ -54,6 +54,7 @@ final class DevelopmentSeeder
             $this->upsertDepartments($timestamp);
             $this->upsertEmployees($timestamp);
             $this->synchronizeEmployeeCodeSequence();
+            $this->upsertPortfolio($timestamp);
             $this->upsertDispatchCompanies($timestamp);
             $this->upsertContracts($timestamp);
 
@@ -347,6 +348,258 @@ final class DevelopmentSeeder
                 [...$values, 'created_at' => $timestamp, 'updated_at' => $timestamp],
             );
             $this->employeeIds[$employee['code']] = (int) $this->pdo->lastInsertId();
+        }
+    }
+
+    private function upsertPortfolio(string $timestamp): void
+    {
+        $skillIds = $this->upsertSkills($timestamp);
+        $this->upsertEmployeeSkills($skillIds, $timestamp);
+        $this->upsertProjects($timestamp);
+        $this->upsertCertifications($timestamp);
+    }
+
+    /** @return array<string, int> */
+    private function upsertSkills(string $timestamp): array
+    {
+        $skillIds = [];
+
+        foreach (['PHP', 'Laravel', 'JavaScript', 'MySQL', 'React', 'AWS', 'Git'] as $name) {
+            $existing = $this->fetchOne(
+                'SELECT id, name FROM skills WHERE name = :name',
+                ['name' => $name],
+            );
+
+            if ($existing !== null) {
+                $this->assertSame($existing, ['name' => $name], 'skill ' . $name);
+                $this->execute(
+                    'UPDATE skills SET updated_at = :updated_at WHERE id = :id',
+                    ['updated_at' => $timestamp, 'id' => $existing['id']],
+                );
+                $skillIds[$name] = (int) $existing['id'];
+                continue;
+            }
+
+            $this->execute(
+                'INSERT INTO skills (name, created_at, updated_at) '
+                . 'VALUES (:name, :created_at, :updated_at)',
+                ['name' => $name, 'created_at' => $timestamp, 'updated_at' => $timestamp],
+            );
+            $skillIds[$name] = (int) $this->pdo->lastInsertId();
+        }
+
+        return $skillIds;
+    }
+
+    /** @param array<string, int> $skillIds */
+    private function upsertEmployeeSkills(array $skillIds, string $timestamp): void
+    {
+        $assignments = [
+            ['EMP000001', 'PHP', 'advanced', 5.0, 'Backend development and service maintenance.'],
+            ['EMP000001', 'Laravel', 'advanced', 4.0, 'Application development with Laravel.'],
+            ['EMP000001', 'JavaScript', 'intermediate', 3.0, 'Browser-based administration features.'],
+            ['EMP000001', 'MySQL', 'advanced', 4.0, 'Schema design and query optimization.'],
+            ['EMP000001', 'Git', 'advanced', 5.0, 'Branching and code review workflows.'],
+            ['EMP000002', 'PHP', 'intermediate', 2.0, 'Web application feature development.'],
+            ['EMP000002', 'JavaScript', 'advanced', 4.0, 'Interactive business screens and validation.'],
+            ['EMP000002', 'React', 'advanced', 3.0, 'Reusable front-end components.'],
+            ['EMP000002', 'Git', 'intermediate', 3.0, 'Team collaboration and pull requests.'],
+            ['EMP000003', 'JavaScript', 'beginner', 1.5, 'Sales dashboard configuration and reporting.'],
+            ['EMP000003', 'Git', 'beginner', 1.0, 'Documentation and dashboard change tracking.'],
+            ['EMP000004', 'PHP', 'advanced', 6.0, 'Legacy application integration and support.'],
+            ['EMP000004', 'MySQL', 'advanced', 5.0, 'Production data migration and verification.'],
+            ['EMP000004', 'AWS', 'intermediate', 2.0, 'Cloud deployment and operational monitoring.'],
+            ['EMP000004', 'Git', 'advanced', 6.0, 'Release management across environments.'],
+        ];
+
+        foreach ($assignments as [$employeeCode, $skillName, $proficiency, $years, $notes]) {
+            $employeeId = $this->employeeIds[$employeeCode];
+            $skillId = $skillIds[$skillName];
+            $existing = $this->fetchOne(
+                'SELECT id FROM employee_skills WHERE employee_id = :employee_id AND skill_id = :skill_id',
+                ['employee_id' => $employeeId, 'skill_id' => $skillId],
+            );
+            $values = [
+                'employee_id' => $employeeId,
+                'skill_id' => $skillId,
+                'proficiency' => $proficiency,
+                'years_experience' => $years,
+                    'notes' => $notes,
+                    'status' => 'active',
+                    'archived_at' => null,
+                    'updated_at' => $timestamp,
+            ];
+
+            if ($existing !== null) {
+                $this->execute(
+                    'UPDATE employee_skills SET proficiency = :proficiency, years_experience = :years_experience, '
+                    . 'notes = :notes, status = :status, archived_at = :archived_at, updated_at = :updated_at '
+                    . 'WHERE id = :id',
+                    [
+                        'proficiency' => $proficiency,
+                        'years_experience' => $years,
+                        'notes' => $notes,
+                        'status' => 'active',
+                        'archived_at' => null,
+                        'updated_at' => $timestamp,
+                        'id' => $existing['id'],
+                    ],
+                );
+                continue;
+            }
+
+            $this->execute(
+                'INSERT INTO employee_skills '
+                . '(employee_id, skill_id, proficiency, years_experience, notes, status, archived_at, created_at, updated_at) '
+                . 'VALUES (:employee_id, :skill_id, :proficiency, :years_experience, :notes, :status, :archived_at, :created_at, :updated_at)',
+                [...$values, 'created_at' => $timestamp],
+            );
+        }
+    }
+
+    private function upsertProjects(string $timestamp): void
+    {
+        $projects = [
+            [
+                'EMP000001', 'Employee Management System', 'Backend Developer', '2023-04-01', '2024-03-31',
+                'Modernized the internal employee directory and portfolio workflow.',
+                'Designed service boundaries, implemented employee APIs, and improved database query performance.',
+                'PHP, MySQL, JavaScript',
+            ],
+            [
+                'EMP000002', 'Internal Sales Management System', 'Full Stack Developer', '2025-04-15', null,
+                'Developed a shared sales pipeline and customer activity workspace for the Tokyo sales team.',
+                'Built reusable React screens, implemented Laravel endpoints, and coordinated user acceptance testing.',
+                'Laravel, React, MySQL',
+            ],
+            [
+                'EMP000003', 'Customer Sales Dashboard', 'Business Systems Coordinator', '2024-04-01', '2025-02-28',
+                'Created a reporting dashboard that gives sales staff a consistent view of monthly activity.',
+                'Defined reporting requirements, verified imported data, and documented dashboard operations.',
+                'JavaScript, Git',
+            ],
+            [
+                'EMP000004', 'Cloud Migration Project', 'Application Engineer', '2025-07-01', '2026-02-28',
+                'Migrated a PHP and MySQL workload to a monitored AWS environment with a repeatable release process.',
+                'Prepared migration runbooks, validated production data, and supported cutover and post-release monitoring.',
+                'AWS, PHP, MySQL',
+            ],
+        ];
+
+        foreach ($projects as [$employeeCode, $projectName, $role, $startDate, $endDate, $description, $responsibilities, $technologies]) {
+            $employeeId = $this->employeeIds[$employeeCode];
+            $existing = $this->fetchOne(
+                'SELECT id FROM employee_projects WHERE employee_id = :employee_id '
+                . 'AND project_name = :project_name AND start_date = :start_date LIMIT 1',
+                [
+                    'employee_id' => $employeeId,
+                    'project_name' => $projectName,
+                    'start_date' => $startDate,
+                ],
+            );
+            $values = [
+                'employee_id' => $employeeId,
+                'project_name' => $projectName,
+                'role' => $role,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'description' => $description,
+                'responsibilities' => $responsibilities,
+                'technologies' => $technologies,
+                'status' => 'active',
+                'archived_at' => null,
+                'updated_at' => $timestamp,
+            ];
+
+            if ($existing !== null) {
+                $this->execute(
+                    'UPDATE employee_projects SET role = :role, end_date = :end_date, description = :description, '
+                    . 'responsibilities = :responsibilities, technologies = :technologies, status = :status, '
+                    . 'archived_at = :archived_at, updated_at = :updated_at WHERE id = :id',
+                    [
+                        'role' => $role,
+                        'end_date' => $endDate,
+                        'description' => $description,
+                        'responsibilities' => $responsibilities,
+                        'technologies' => $technologies,
+                        'status' => 'active',
+                        'archived_at' => null,
+                        'updated_at' => $timestamp,
+                        'id' => $existing['id'],
+                    ],
+                );
+                continue;
+            }
+
+            $this->execute(
+                'INSERT INTO employee_projects '
+                . '(employee_id, project_name, role, start_date, end_date, description, responsibilities, technologies, status, archived_at, created_at, updated_at) '
+                . 'VALUES (:employee_id, :project_name, :role, :start_date, :end_date, :description, :responsibilities, :technologies, :status, :archived_at, :created_at, :updated_at)',
+                [...$values, 'created_at' => $timestamp],
+            );
+        }
+    }
+
+    private function upsertCertifications(string $timestamp): void
+    {
+        $certifications = [
+            ['EMP000001', 'AWS Certified Solutions Architect', 'Amazon Web Services', '2024-06-15', '2027-06-15', 'SAA-C03-EMP000001', 'Cloud architecture certification for internal platform work.'],
+            ['EMP000001', 'Zend Certified PHP Engineer', 'Zend by Perforce', '2023-11-10', null, 'ZCE-PHP-EMP000001', 'PHP application development certification.'],
+            ['EMP000002', 'AWS Certified Developer', 'Amazon Web Services', '2025-03-20', '2028-03-20', 'DVA-C02-EMP000002', 'Supports the ongoing sales platform delivery work.'],
+            ['EMP000003', 'IT Passport Examination', 'Information-technology Promotion Agency, Japan', '2024-02-15', null, 'IP-2024-EMP000003', 'Business and information technology fundamentals.'],
+            ['EMP000004', 'AWS Certified Solutions Architect', 'Amazon Web Services', '2025-08-20', '2028-08-20', 'SAA-C03-EMP000004', 'Cloud migration and infrastructure design certification.'],
+        ];
+
+        foreach ($certifications as [$employeeCode, $name, $issuer, $obtainedDate, $expirationDate, $credentialIdentifier, $notes]) {
+            $employeeId = $this->employeeIds[$employeeCode];
+            $existing = $this->fetchOne(
+                'SELECT id FROM employee_certifications WHERE employee_id = :employee_id '
+                . 'AND certification_name = :certification_name AND issuing_organization = :issuing_organization '
+                . 'AND obtained_date = :obtained_date LIMIT 1',
+                [
+                    'employee_id' => $employeeId,
+                    'certification_name' => $name,
+                    'issuing_organization' => $issuer,
+                    'obtained_date' => $obtainedDate,
+                ],
+            );
+            $values = [
+                'employee_id' => $employeeId,
+                'certification_name' => $name,
+                'issuing_organization' => $issuer,
+                'obtained_date' => $obtainedDate,
+                'expiration_date' => $expirationDate,
+                'credential_identifier' => $credentialIdentifier,
+                'notes' => $notes,
+                'status' => 'active',
+                'archived_at' => null,
+                'updated_at' => $timestamp,
+            ];
+
+            if ($existing !== null) {
+                $this->execute(
+                    'UPDATE employee_certifications SET expiration_date = :expiration_date, '
+                    . 'credential_identifier = :credential_identifier, notes = :notes, status = :status, '
+                    . 'archived_at = :archived_at, updated_at = :updated_at WHERE id = :id',
+                    [
+                        'expiration_date' => $expirationDate,
+                        'credential_identifier' => $credentialIdentifier,
+                        'notes' => $notes,
+                        'status' => 'active',
+                        'archived_at' => null,
+                        'updated_at' => $timestamp,
+                        'id' => $existing['id'],
+                    ],
+                );
+                continue;
+            }
+
+            $this->execute(
+                'INSERT INTO employee_certifications '
+                . '(employee_id, certification_name, issuing_organization, obtained_date, expiration_date, credential_identifier, notes, status, archived_at, created_at, updated_at) '
+                . 'VALUES (:employee_id, :certification_name, :issuing_organization, :obtained_date, :expiration_date, :credential_identifier, :notes, :status, :archived_at, :created_at, :updated_at)',
+                [...$values, 'created_at' => $timestamp],
+            );
         }
     }
 

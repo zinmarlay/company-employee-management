@@ -84,7 +84,7 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
             $pdo,
             new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'),
         );
-        self::assertSame(6, $runner->migrate());
+        self::assertSame(7, $runner->migrate());
         $this->repository = new PdoEmployeeRepository(new LazyPdoConnection($configuration));
     }
 
@@ -452,6 +452,10 @@ final class EmployeeRepositoryIntegrationTest extends TestCase
 
     private function resetTestSchema(PDO $pdo): void
     {
+        $pdo->exec('DROP TABLE IF EXISTS employee_certifications');
+        $pdo->exec('DROP TABLE IF EXISTS employee_projects');
+        $pdo->exec('DROP TABLE IF EXISTS employee_skills');
+        $pdo->exec('DROP TABLE IF EXISTS skills');
         $pdo->exec('DROP TABLE IF EXISTS dispatch_contracts');
         $pdo->exec('DROP TABLE IF EXISTS dispatch_companies');
         $pdo->exec('DROP TABLE IF EXISTS employee_code_sequences');

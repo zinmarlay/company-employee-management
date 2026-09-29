@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Application\Employee\EmployeeService;
+use App\Application\Employee\EmployeePortfolioSummaryService;
 use App\Bootstrap\Configuration;
 use App\Http\Request;
 use App\Http\Response;
@@ -19,6 +20,7 @@ final class EmployeeController
         private readonly ViewRenderer $views,
         private readonly EmployeeService $employees,
         private readonly Configuration $configuration,
+        private readonly ?EmployeePortfolioSummaryService $portfolioSummary = null,
     ) {
     }
 
@@ -67,12 +69,14 @@ final class EmployeeController
 
         $employee['created_at'] = $this->displayDateTime($employee['created_at']);
         $employee['updated_at'] = $this->displayDateTime($employee['updated_at']);
+        $portfolioSummary = $this->portfolioSummary?->summary($id) ?? ['skills' => 0, 'projects' => 0, 'certifications' => 0];
 
         $page = $this->views->renderPage('employees/show', [
             'pageTitle' => $employee['first_name'] . ' ' . $employee['last_name'],
             'currentPath' => $request->path(),
             'activeNav' => 'employees',
             'employee' => $employee,
+            'portfolioSummary' => $portfolioSummary,
             'notice' => $this->notice($request),
         ]);
 
