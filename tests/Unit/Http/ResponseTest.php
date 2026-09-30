@@ -33,4 +33,13 @@ final class ResponseTest extends TestCase
 
         Response::text('unsafe', 200, ['X-Test' => "safe\r\nInjected: true"]);
     }
+
+    public function testRepeatedHeadersArePreserved(): void
+    {
+        $response = Response::text('ok')
+            ->withHeader('Set-Cookie', 'first=1; Path=/')
+            ->withAddedHeader('Set-Cookie', 'second=2; Path=/');
+
+        self::assertSame(['first=1; Path=/', 'second=2; Path=/'], $response->headerValues()['Set-Cookie']);
+    }
 }

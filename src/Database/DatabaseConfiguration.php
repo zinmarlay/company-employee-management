@@ -23,13 +23,24 @@ final class DatabaseConfiguration
      * @param array<string, mixed> $environment
      * @param array<string, mixed> $defaults
      */
-    public static function fromEnvironment(array $environment = [], array $defaults = []): self
+    public static function fromEnvironment(array $environment = [], array $defaults = [], bool $production = false): self
     {
+        if ($production) {
+            foreach (['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD', 'DB_CHARSET'] as $key) {
+                if (!self::hasEnvironmentValue($key, $environment)) {
+                    throw new InvalidArgumentException(sprintf('%s must be explicitly configured in production.', $key));
+                }
+            }
+        }
+
         $host = self::stringValue('DB_HOST', $environment, $defaults['host'] ?? '127.0.0.1');
         $port = self::portValue($environment, $defaults['port'] ?? 3306);
         $database = self::requiredStringValue('DB_DATABASE', $environment);
         $username = self::requiredStringValue('DB_USERNAME', $environment);
         $password = self::requiredEnvironmentValue('DB_PASSWORD', $environment);
+        if ($production && ($password === '' || $username === 'change-me' || $password === 'change-me')) {
+            throw new InvalidArgumentException('DB_PASSWORD must be explicitly configured in production.');
+        }
         $charset = self::charsetValue($environment, $defaults['charset'] ?? 'utf8mb4');
 
         return new self($host, $port, $database, $username, $password, $charset, 'mysql');

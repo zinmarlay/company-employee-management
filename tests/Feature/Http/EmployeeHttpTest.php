@@ -144,8 +144,9 @@ final class EmployeeHttpTest extends TestCase
 
         self::assertSame(200, $response->statusCode());
         self::assertStringContainsString('id="employee-search-department-data"', $response->body());
-        self::assertStringContainsString("branchSelect.addEventListener('change'", $response->body());
-        self::assertStringContainsString('renderDepartments(branchSelect.value, departmentSelect.value)', $response->body());
+        self::assertStringContainsString('<script src="/assets/js/employee-search.js" defer></script>', $response->body());
+        self::assertStringNotContainsString("branchSelect.addEventListener('change'", $response->body());
+        self::assertStringContainsString("branchSelect.addEventListener('change'", (string) file_get_contents(__DIR__ . '/../../../public/assets/js/employee-search.js'));
     }
 
     public function testEmployeeSearchOrganizationChoicesUseLocalizedCatalogLabelsAndLegacyFallbacks(): void

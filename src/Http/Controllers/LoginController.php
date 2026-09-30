@@ -9,6 +9,9 @@ use App\Http\Response;
 use App\Http\View\ViewRenderer;
 use App\Security\AuthenticationService;
 use App\Security\SessionManager;
+use App\Logging\LogContext;
+use App\Logging\LoggerInterface;
+use App\Logging\NullLogger;
 
 final class LoginController
 {
@@ -16,8 +19,12 @@ final class LoginController
         private readonly ViewRenderer $views,
         private readonly AuthenticationService $authentication,
         private readonly SessionManager $session,
+        ?LoggerInterface $logger = null,
     ) {
+        $this->logger = $logger ?? new NullLogger();
     }
+
+    private readonly LoggerInterface $logger;
 
     public function show(Request $request): Response
     {
@@ -38,10 +45,12 @@ final class LoginController
         $password = $request->body('password');
 
         if (!is_string($email) || !is_string($password)) {
+            $this->logger->warning('authentication_failed', LogContext::request($request, ['outcome' => 'invalid_input', 'status' => 422]));
             return $this->render($request, 422, '', 'auth.invalid_credentials', is_string($email) ? strtolower(trim($email)) : '');
         }
 
         if ($this->authentication->authenticate($email, $password) === null) {
+            $this->logger->warning('authentication_failed', LogContext::request($request, ['outcome' => 'invalid_credentials', 'status' => 422]));
             return $this->render($request, 422, '', 'auth.invalid_credentials', strtolower(trim($email)));
         }
 
@@ -53,7 +62,7 @@ final class LoginController
         $cookie = $this->session->destroy();
         $response = Response::redirect('/login?notice=logged-out');
 
-        return $cookie === '' ? $response : $response->withHeader('Set-Cookie', $cookie);
+        return $cookie === '' ? $response : $response->withAddedHeader('Set-Cookie', $cookie);
     }
 
     /** @param string $email */

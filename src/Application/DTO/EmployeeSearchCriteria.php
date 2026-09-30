@@ -16,6 +16,7 @@ final readonly class EmployeeSearchCriteria
         public string $direction,
         public int $page,
         public int $perPage = 20,
+        public ?string $keywordError = null,
     ) {
     }
 

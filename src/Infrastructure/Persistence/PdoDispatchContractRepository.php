@@ -7,7 +7,10 @@ namespace App\Infrastructure\Persistence;
 use App\Application\DTO\DispatchContractInput;
 use App\Database\LazyPdoConnection;
 use App\Domain\Dispatch\DispatchContractRepositoryInterface;
+use App\Domain\Dispatch\DispatchContractEmployeeUnavailableException;
+use App\Domain\Dispatch\DispatchContractOverlapException;
 use PDO;
+use Throwable;
 
 final class PdoDispatchContractRepository implements DispatchContractRepositoryInterface
 {
@@ -73,38 +76,92 @@ final class PdoDispatchContractRepository implements DispatchContractRepositoryI
 
     public function insert(DispatchContractInput $input, string $createdAt, string $updatedAt): int
     {
-        $statement = $this->connection->get()->prepare(
-            'INSERT INTO dispatch_contracts '
-            . '(employee_id, dispatch_company_id, start_date, end_date, created_at, updated_at) '
-            . 'VALUES (:employee_id, :dispatch_company_id, :start_date, :end_date, :created_at, :updated_at)',
-        );
-        $statement->execute([
-            'employee_id' => $input->employeeId,
-            'dispatch_company_id' => $input->dispatchCompanyId,
-            'start_date' => $input->startDate,
-            'end_date' => $input->endDate,
-            'created_at' => $createdAt,
-            'updated_at' => $updatedAt,
-        ]);
+        $pdo = $this->connection->get();
+        $pdo->beginTransaction();
+        try {
+            $this->lockEligibleEmployee($pdo, $input->employeeId);
+            if ($this->hasOverlapWithConnection($pdo, $input->employeeId, $input->startDate, $input->endDate)) {
+                throw new DispatchContractOverlapException('The dispatch contract period overlaps an existing contract.');
+            }
 
-        return (int) $this->connection->get()->lastInsertId();
+            $statement = $pdo->prepare(
+                'INSERT INTO dispatch_contracts '
+                . '(employee_id, dispatch_company_id, start_date, end_date, created_at, updated_at) '
+                . 'VALUES (:employee_id, :dispatch_company_id, :start_date, :end_date, :created_at, :updated_at)',
+            );
+            $statement->execute([
+                'employee_id' => $input->employeeId,
+                'dispatch_company_id' => $input->dispatchCompanyId,
+                'start_date' => $input->startDate,
+                'end_date' => $input->endDate,
+                'created_at' => $createdAt,
+                'updated_at' => $updatedAt,
+            ]);
+            $id = (int) $pdo->lastInsertId();
+            $pdo->commit();
+            return $id;
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
+        }
     }
 
     public function update(int $id, DispatchContractInput $input, string $updatedAt): void
     {
-        $statement = $this->connection->get()->prepare(
+        $pdo = $this->connection->get();
+        $pdo->beginTransaction();
+        try {
+            $this->lockEligibleEmployee($pdo, $input->employeeId);
+            if ($this->hasOverlapWithConnection($pdo, $input->employeeId, $input->startDate, $input->endDate, $id)) {
+                throw new DispatchContractOverlapException('The dispatch contract period overlaps an existing contract.');
+            }
+
+            $statement = $pdo->prepare(
             'UPDATE dispatch_contracts SET employee_id = :employee_id, '
             . 'dispatch_company_id = :dispatch_company_id, start_date = :start_date, '
             . 'end_date = :end_date, updated_at = :updated_at WHERE id = :id',
-        );
-        $statement->execute([
+            );
+            $statement->execute([
             'id' => $id,
             'employee_id' => $input->employeeId,
             'dispatch_company_id' => $input->dispatchCompanyId,
             'start_date' => $input->startDate,
             'end_date' => $input->endDate,
             'updated_at' => $updatedAt,
-        ]);
+            ]);
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
+    private function lockEligibleEmployee(PDO $pdo, int $employeeId): void
+    {
+        $statement = $pdo->prepare('SELECT employee_type, status FROM employees WHERE id = :id FOR UPDATE');
+        $statement->execute(['id' => $employeeId]);
+        $employee = $statement->fetch();
+        if ($employee === false || $employee['employee_type'] !== 'dispatched' || $employee['status'] !== 'active') {
+            throw new DispatchContractEmployeeUnavailableException('The employee is not eligible for a dispatch contract.');
+        }
+    }
+
+    private function hasOverlapWithConnection(PDO $pdo, int $employeeId, string $startDate, string $endDate, ?int $exceptId = null): bool
+    {
+        $sql = 'SELECT 1 FROM dispatch_contracts '
+            . 'WHERE employee_id = :employee_id AND start_date <= :end_date AND end_date >= :start_date';
+        $parameters = ['employee_id' => $employeeId, 'start_date' => $startDate, 'end_date' => $endDate];
+        if ($exceptId !== null) {
+            $sql .= ' AND id <> :except_id';
+            $parameters['except_id'] = $exceptId;
+        }
+        $statement = $pdo->prepare($sql . ' LIMIT 1');
+        $statement->execute($parameters);
+        return $statement->fetchColumn() !== false;
     }
 
     private function selectSql(): string

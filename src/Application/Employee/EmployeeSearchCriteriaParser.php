@@ -11,6 +11,7 @@ final class EmployeeSearchCriteriaParser
     private const DEFAULT_SORT = 'employee_code';
     private const DEFAULT_DIRECTION = 'asc';
     private const MAX_PAGE = 1_000_000;
+    private const MAX_KEYWORD_LENGTH = 254;
 
     /** @var array<int, string> */
     private const SORTS = ['employee_code', 'name', 'branch', 'department', 'employee_type', 'status'];
@@ -24,8 +25,9 @@ final class EmployeeSearchCriteriaParser
     /** @param array<string, mixed> $query */
     public function parse(array $query): EmployeeSearchCriteria
     {
+        $keywordResult = $this->keyword($query['keyword'] ?? null);
         return new EmployeeSearchCriteria(
-            $this->keyword($query['keyword'] ?? null),
+            $keywordResult['value'],
             $this->positiveInteger($query['branch_id'] ?? null),
             $this->positiveInteger($query['department_id'] ?? null),
             $this->whitelisted($query['employee_type'] ?? null, self::TYPES),
@@ -33,17 +35,26 @@ final class EmployeeSearchCriteriaParser
             $this->whitelisted($query['sort'] ?? null, self::SORTS) ?? self::DEFAULT_SORT,
             $this->whitelisted($query['direction'] ?? null, ['asc', 'desc']) ?? self::DEFAULT_DIRECTION,
             $this->page($query['page'] ?? null),
+            20,
+            $keywordResult['error'],
         );
     }
 
-    private function keyword(mixed $value): ?string
+    /** @return array{value: ?string, error: ?string} */
+    private function keyword(mixed $value): array
     {
         if (!is_string($value)) {
-            return null;
+            return ['value' => null, 'error' => null];
         }
 
         $value = trim($value);
-        return $value === '' ? null : $value;
+        if ($value === '') {
+            return ['value' => null, 'error' => null];
+        }
+        if ($this->length($value) > self::MAX_KEYWORD_LENGTH) {
+            return ['value' => null, 'error' => sprintf('This field must be %d characters or fewer.', self::MAX_KEYWORD_LENGTH)];
+        }
+        return ['value' => $value, 'error' => null];
     }
 
     private function positiveInteger(mixed $value): ?int
@@ -71,5 +82,10 @@ final class EmployeeSearchCriteriaParser
     {
         $page = $this->positiveInteger($value);
         return $page === null || $page > self::MAX_PAGE ? 1 : $page;
+    }
+
+    private function length(string $value): int
+    {
+        return function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
     }
 }

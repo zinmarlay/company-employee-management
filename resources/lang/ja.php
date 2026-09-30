@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 return [
+    'errors' => [
+        'not_found_title' => 'ページが見つかりません',
+        'not_found_message' => '指定されたページは見つかりませんでした。',
+        'method_not_allowed_title' => '許可されていないメソッドです',
+        'method_not_allowed_message' => 'このページでは指定されたメソッドを使用できません。',
+        'server_error_title' => 'サーバーエラー',
+    ],
     'navigation' => [
         'dashboard' => 'ダッシュボード',
         'employees' => '社員',
@@ -482,6 +489,7 @@ return [
         'duplicate_email' => 'このメールアドレスはすでに登録されています。',
         'duplicate_dispatch_company_code' => 'この派遣会社コードはすでに登録されています。',
         'existing_employee' => '存在する社員を選択してください。',
+        'active_dispatched_employee' => '有効な派遣社員を選択してください。',
         'dispatched_employee' => '派遣社員のみ派遣契約を登録できます。',
         'existing_dispatch_company' => '存在する派遣会社を選択してください。',
         'active_dispatch_company' => '有効な派遣会社を選択してください。',

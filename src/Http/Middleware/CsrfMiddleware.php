@@ -24,6 +24,7 @@ final class CsrfMiddleware implements MiddlewareInterface
                 return $next->handle($request);
             }
 
+            $this->errors->logCsrfDenied($request);
             return $this->errors->csrfDenied();
         }
 

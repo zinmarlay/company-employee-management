@@ -28,6 +28,10 @@ final class Configuration
      */
     public static function fromEnvironment(string $configFile, array $environment = []): self
     {
+        if (!extension_loaded('mbstring')) {
+            throw new RuntimeException('The mbstring extension is required.');
+        }
+
         $defaults = require $configFile;
 
         if (!is_array($defaults)) {
@@ -48,7 +52,9 @@ final class Configuration
             throw new RuntimeException('Database configuration defaults must be an array.');
         }
 
-        return new self($values, $environment, $databaseDefaults);
+        $configuration = new self($values, $environment, $databaseDefaults);
+        $configuration->validateProduction();
+        return $configuration;
     }
 
     public function name(): string
@@ -66,6 +72,16 @@ final class Configuration
         return $this->values['app_debug'];
     }
 
+    public function isProduction(): bool
+    {
+        return $this->environment() === 'production';
+    }
+
+    public function requiresHttps(): bool
+    {
+        return $this->isProduction();
+    }
+
     public function url(): string
     {
         return $this->values['app_url'];
@@ -78,7 +94,7 @@ final class Configuration
 
     public function database(): DatabaseConfiguration
     {
-        return DatabaseConfiguration::fromEnvironment($this->environment, $this->databaseDefaults);
+        return DatabaseConfiguration::fromEnvironment($this->environment, $this->databaseDefaults, $this->isProduction());
     }
 
     private static function environmentValue(mixed $default, array $environment): string
@@ -144,5 +160,21 @@ final class Configuration
         $value = getenv($key);
 
         return $value === false || $value === '' ? $default : $value;
+    }
+
+    private function validateProduction(): void
+    {
+        if (!$this->isProduction()) {
+            return;
+        }
+
+        if ($this->isDebug()) {
+            throw new InvalidArgumentException('APP_DEBUG must be false in production.');
+        }
+
+        $url = filter_var($this->url(), FILTER_VALIDATE_URL);
+        if ($url === false || strtolower((string) parse_url($this->url(), PHP_URL_SCHEME)) !== 'https') {
+            throw new InvalidArgumentException('APP_URL must use HTTPS in production.');
+        }
     }
 }

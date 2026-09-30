@@ -25,7 +25,7 @@ The current local development environment uses PHP 8.5.x. Verify the active PHP 
 php -v
 ```
 
-The database foundation requires PDO and `pdo_mysql` when database commands or database integration tests are used. `mbstring` remains planned for reliable Japanese and multibyte text handling, and `fileinfo` remains planned for safe employee-photo upload handling.
+The application requires PHP >= 8.3, PDO, `pdo_mysql`, and `mbstring`. Phase 11 has no employee-photo upload feature, so `fileinfo` is not currently required.
 
 ## Installation
 
@@ -74,6 +74,15 @@ DB_CHARSET=utf8mb4
 
 `.env` is ignored by Git. Do not add local credentials to the repository;
 `.env.example` is the committed template.
+
+For production, set `APP_ENV=production`, `APP_DEBUG=false`, and an `https://`
+`APP_URL`. Production uses direct trusted HTTPS only and does not trust forwarded
+protocol headers. Supply all database credentials explicitly; missing production
+database configuration fails fast without exposing credential values. PHP's
+configured `error_log` pipeline is the application log destination; rotation,
+retention, permissions, and monitoring are host/operator responsibilities. See
+[`docs/deployment-checklist.md`](docs/deployment-checklist.md) for the release
+checklist.
 
 ## Local development server
 

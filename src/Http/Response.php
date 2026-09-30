@@ -8,9 +8,7 @@ use InvalidArgumentException;
 
 final class Response
 {
-    /**
-     * @param array<string, string> $headers
-     */
+    /** @param array<string, list<string>> $headers */
     private function __construct(
         private readonly string $body,
         private readonly int $statusCode,
@@ -18,17 +16,13 @@ final class Response
     ) {
     }
 
-    /**
-     * @param array<string, string> $headers
-     */
+    /** @param array<string, string> $headers */
     public static function html(string $body, int $statusCode = 200, array $headers = []): self
     {
         return self::create($body, $statusCode, self::withDefaultContentType($headers, 'text/html; charset=utf-8'));
     }
 
-    /**
-     * @param array<string, string> $headers
-     */
+    /** @param array<string, string> $headers */
     public static function text(string $body, int $statusCode = 200, array $headers = []): self
     {
         return self::create($body, $statusCode, self::withDefaultContentType($headers, 'text/plain; charset=utf-8'));
@@ -43,9 +37,7 @@ final class Response
         return self::create('', $statusCode, ['Location' => $location]);
     }
 
-    /**
-     * @param array<string, string> $headers
-     */
+    /** @param array<string, string> $headers */
     public static function create(string $body, int $statusCode = 200, array $headers = []): self
     {
         if ($statusCode < 100 || $statusCode > 599) {
@@ -56,7 +48,7 @@ final class Response
 
         foreach ($headers as $name => $value) {
             self::assertSafeHeader($name, $value);
-            $validatedHeaders[$name] = $value;
+            $validatedHeaders[$name] = [$value];
         }
 
         return new self($body, $statusCode, $validatedHeaders);
@@ -72,10 +64,18 @@ final class Response
         return $this->statusCode;
     }
 
-    /**
-     * @return array<string, string>
-     */
+    /** @return array<string, string> The first value for each header name. */
     public function headers(): array
+    {
+        $headers = [];
+        foreach ($this->headers as $name => $values) {
+            $headers[$name] = $values[0] ?? '';
+        }
+        return $headers;
+    }
+
+    /** @return array<string, list<string>> */
+    public function headerValues(): array
     {
         return $this->headers;
     }
@@ -84,7 +84,7 @@ final class Response
     {
         foreach ($this->headers as $headerName => $value) {
             if (strcasecmp($headerName, $name) === 0) {
-                return $value;
+            return $value[0] ?? null;
             }
         }
 
@@ -94,15 +94,24 @@ final class Response
     public function withHeader(string $name, string $value): self
     {
         $headers = $this->headers;
-        $headers[$name] = $value;
+        $existing = $this->headerName($name);
+        $headers[$existing ?? $name] = [$value];
 
-        return self::create($this->body, $this->statusCode, $headers);
+        return self::fromHeaderValues($this->body, $this->statusCode, $headers);
     }
 
-    /**
-     * @param array<string, string> $headers
-     * @return array<string, string>
-     */
+    public function withAddedHeader(string $name, string $value): self
+    {
+        $headers = $this->headers;
+        $existing = $this->headerName($name);
+        $key = $existing ?? $name;
+        $headers[$key] ??= [];
+        $headers[$key][] = $value;
+
+        return self::fromHeaderValues($this->body, $this->statusCode, $headers);
+    }
+
+    /** @param array<string, string> $headers @return array<string, string> */
     private static function withDefaultContentType(array $headers, string $contentType): array
     {
         foreach ($headers as $name => $_value) {
@@ -123,5 +132,28 @@ final class Response
         if (preg_match('/[\r\n]/', $value) === 1) {
             throw new InvalidArgumentException('HTTP header values must not contain CR or LF characters.');
         }
+    }
+
+    /** @param array<string, list<string>> $headers */
+    private static function fromHeaderValues(string $body, int $statusCode, array $headers): self
+    {
+        foreach ($headers as $name => $values) {
+            foreach ($values as $value) {
+                self::assertSafeHeader($name, $value);
+            }
+        }
+
+        return new self($body, $statusCode, $headers);
+    }
+
+    private function headerName(string $name): ?string
+    {
+        foreach (array_keys($this->headers) as $headerName) {
+            if (strcasecmp($headerName, $name) === 0) {
+                return $headerName;
+            }
+        }
+
+        return null;
     }
 }

@@ -14,6 +14,7 @@ use App\Database\Migration\MigrationDiscovery;
 use App\Database\Migration\MigrationRunner;
 use App\Infrastructure\Persistence\PdoDispatchCompanyRepository;
 use App\Infrastructure\Persistence\PdoDispatchContractRepository;
+use App\Domain\Dispatch\DispatchContractOverlapException;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -87,6 +88,13 @@ final class DispatchRepositoryIntegrationTest extends TestCase
         $contractId = $contracts->insert(new DispatchContractInput($employeeId, $companyId, '2026-01-01', '2026-03-31'), '2026-09-24 01:01:00', '2026-09-24 01:01:00');
         self::assertTrue($contracts->hasOverlap($employeeId, '2026-03-01', '2026-05-31'));
         self::assertFalse($contracts->hasOverlap($employeeId, '2026-04-01', '2026-06-30'));
+
+        try {
+            $contracts->insert(new DispatchContractInput($employeeId, $companyId, '2026-03-01', '2026-05-31'), '2026-09-24 01:01:30', '2026-09-24 01:01:30');
+            self::fail('The repository must reject an overlapping contract inside its write transaction.');
+        } catch (DispatchContractOverlapException) {
+            self::assertCount(1, $contracts->findHistoryByEmployeeId($employeeId));
+        }
 
         $secondId = $contracts->insert(new DispatchContractInput($employeeId, $companyId, '2026-04-01', '2026-06-30'), '2026-09-24 01:02:00', '2026-09-24 01:02:00');
         self::assertNotSame($contractId, $secondId);

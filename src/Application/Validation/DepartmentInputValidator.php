@@ -9,6 +9,7 @@ use App\Application\DTO\DepartmentMetadataInput;
 
 final class DepartmentInputValidator
 {
+    private const MAX_DESCRIPTION_LENGTH = 5000;
     /** @param array<string, mixed> $rawInput */
     public function validate(array $rawInput): DepartmentValidationResult
     {
@@ -74,6 +75,10 @@ final class DepartmentInputValidator
 
         $value = trim($raw);
         $values['description'] = $value;
+        if ($this->length($value) > self::MAX_DESCRIPTION_LENGTH) {
+            $errors['description'] = sprintf('This field must be %d characters or fewer.', self::MAX_DESCRIPTION_LENGTH);
+            return null;
+        }
         return $value === '' ? null : $value;
     }
 

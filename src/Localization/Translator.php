@@ -70,6 +70,7 @@ final class Translator
             'An employee with this email already exists.' => 'validation.duplicate_email',
             'A dispatch company with this code already exists.' => 'validation.duplicate_dispatch_company_code',
             'Select an existing employee.' => 'validation.existing_employee',
+            'Select an active dispatched employee.' => 'validation.active_dispatched_employee',
             'Only dispatched employees can receive a dispatch contract.' => 'validation.dispatched_employee',
             'Select an existing dispatch company.' => 'validation.existing_dispatch_company',
             'Select an active dispatch company.' => 'validation.active_dispatch_company',

@@ -28,6 +28,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
         }
 
         if ($access === 'admin' && !$user->isAdmin()) {
+            $this->errors->logAuthorizationDenied($request);
             return $this->errors->authorizationDenied();
         }
 

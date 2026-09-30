@@ -10,8 +10,10 @@ final class ResponseEmitter
     {
         http_response_code($response->statusCode());
 
-        foreach ($response->headers() as $name => $value) {
-            header($name . ': ' . $value, true);
+        foreach ($response->headerValues() as $name => $values) {
+            foreach ($values as $value) {
+                header($name . ': ' . $value, false);
+            }
         }
 
         echo $response->body();

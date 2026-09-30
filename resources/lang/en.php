@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 return [
+    'errors' => [
+        'not_found_title' => 'Not Found',
+        'not_found_message' => 'The requested page could not be found.',
+        'method_not_allowed_title' => 'Method Not Allowed',
+        'method_not_allowed_message' => 'The requested method is not supported for this page.',
+        'server_error_title' => 'Server Error',
+    ],
     'navigation' => [
         'dashboard' => 'Dashboard',
         'employees' => 'Employees',
@@ -505,6 +512,7 @@ return [
         'duplicate_email' => 'An employee with this email already exists.',
         'duplicate_dispatch_company_code' => 'A dispatch company with this code already exists.',
         'existing_employee' => 'Select an existing employee.',
+        'active_dispatched_employee' => 'Select an active dispatched employee.',
         'dispatched_employee' => 'Only dispatched employees can receive a dispatch contract.',
         'existing_dispatch_company' => 'Select an existing dispatch company.',
         'active_dispatch_company' => 'Select an active dispatch company.',

@@ -32,6 +32,7 @@ use App\Database\LazyPdoConnection;
 use App\Http\ExceptionResponder;
 use App\Http\HttpKernel;
 use App\Http\SecurityErrorResponder;
+use App\Http\SecurityHeadersPolicy;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeSkillController;
 use App\Http\Controllers\EmployeeProjectController;
@@ -66,6 +67,7 @@ use App\Security\AuthenticationContext;
 use App\Security\AuthenticationService;
 use App\Security\CsrfTokenManager;
 use App\Security\SessionManager;
+use App\Logging\ErrorLogLogger;
 
 final class ApplicationBootstrap
 {
@@ -77,9 +79,10 @@ final class ApplicationBootstrap
     {
         $configuration = Configuration::fromEnvironment($this->projectRoot . '/config/app.php');
         date_default_timezone_set($configuration->timezone());
+        $logger = new ErrorLogLogger();
 
         $translator = new Translator($this->projectRoot . '/resources/lang');
-        $session = new SessionManager();
+        $session = new SessionManager($configuration->requiresHttps());
         $csrf = new CsrfTokenManager($session);
         $authenticationContext = new AuthenticationContext();
         $viewRenderer = new ViewRenderer($this->projectRoot . '/resources/views', $translator, $csrf, $authenticationContext);
@@ -121,8 +124,8 @@ final class ApplicationBootstrap
         $certificationController = new EmployeeCertificationController($viewRenderer, $certificationService);
         $systemUserService = new SystemUserService($systemUserRepository, new SystemUserInputValidator(), $clock);
         $authenticationService = new AuthenticationService($systemUserRepository, $session, $csrf, $clock);
-        $securityErrors = new SecurityErrorResponder($viewRenderer);
-        $loginController = new LoginController($viewRenderer, $authenticationService, $session);
+        $securityErrors = new SecurityErrorResponder($viewRenderer, $logger);
+        $loginController = new LoginController($viewRenderer, $authenticationService, $session, $logger);
         $systemUserController = new SystemUserController($viewRenderer, $systemUserService, $securityErrors);
         $branchService = new BranchService($branches, $departments, new BranchInputValidator(), $clock, new PrefectureCatalog(), $displayNames, $translator);
         $departmentService = new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock, new DepartmentCatalog(), $displayNames, $translator);
@@ -172,7 +175,9 @@ final class ApplicationBootstrap
                 new AuthorizationMiddleware($securityErrors),
                 new CsrfMiddleware($csrf, $securityErrors),
             ],
-            new ExceptionResponder($configuration->isDebug()),
+            new ExceptionResponder($configuration->isDebug(), $translator),
+            $logger,
+            new SecurityHeadersPolicy(),
         );
     }
 }

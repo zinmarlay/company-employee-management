@@ -26,6 +26,7 @@ final class RequestTest extends TestCase
         self::assertSame('Tanaka', $request->body('name'));
         self::assertSame('request-123', $request->header('x-request-id'));
         self::assertSame('ja', $request->cookie('app_locale'));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $request->requestId());
     }
 
     public function testRouteParametersAreAttachedImmutably(): void
@@ -36,5 +37,11 @@ final class RequestTest extends TestCase
         self::assertSame([], $request->routeParameters());
         self::assertSame('EMP-001', $withParameters->routeParameter('employeeNumber'));
         self::assertNotSame($request, $withParameters);
+    }
+
+    public function testRouteDerivedCopiesRetainTheSameRequestId(): void
+    {
+        $request = Request::fromValues('GET', '/employees');
+        self::assertSame($request->requestId(), $request->withRouteAccess('user')->requestId());
     }
 }

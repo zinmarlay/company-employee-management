@@ -32,7 +32,7 @@ final class LocaleMiddleware implements MiddlewareInterface
         $response = $next->handle($request);
 
         if ($requestedLocale !== null) {
-            $response = $response->withHeader('Set-Cookie', $this->cookieHeader($requestedLocale));
+            $response = $response->withAddedHeader('Set-Cookie', $this->cookieHeader($requestedLocale));
         }
 
         return $response;

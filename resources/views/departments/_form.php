@@ -55,7 +55,7 @@ $attributes = static function (string $field) use ($errors, $escape): string {
         <?php else: ?>
             <div class="form-field form-field--wide"><label for="department_code"><?= $escape($t('form.department_type')) ?> <span class="required-mark" aria-hidden="true">*</span></label><select id="department_code" name="department_code" required<?= $attributes('department_code') ?>><option value=""><?= $escape($t('form.select_department_type')) ?></option><?php foreach ($departmentTypes as $type): ?><option value="<?= $escape($type['code']) ?>"<?= (string) $value('department_code') === (string) $type['code'] ? ' selected' : '' ?>><?= $escape($type['display_label'] ?? $type['name'] . ' (' . $type['code'] . ')') ?></option><?php endforeach; ?></select><?= $error('department_code') ?></div>
         <?php endif; ?>
-        <div class="form-field form-field--wide"><label for="description"><?= $escape($t('form.description')) ?></label><textarea id="description" name="description" rows="4"<?= $attributes('description') ?>><?= $escape($value('description')) ?></textarea><?= $error('description') ?></div>
+        <div class="form-field form-field--wide"><label for="description"><?= $escape($t('form.description')) ?></label><textarea id="description" name="description" rows="4" maxlength="5000"<?= $attributes('description') ?>><?= $escape($value('description')) ?></textarea><?= $error('description') ?></div>
     </div>
     <div class="form-actions"><a class="button button--secondary" href="<?= $escape($editing ? '/departments/' . $id : '/departments') ?>"><?= $escape($t('actions.cancel')) ?></a><button class="button button--primary" type="submit"><?= $escape($t($submitKey)) ?></button></div>
 </form>

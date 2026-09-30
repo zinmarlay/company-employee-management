@@ -26,6 +26,7 @@ final class Request
         private readonly string $routeAccess,
         private readonly ?AuthenticatedUser $authenticatedUser,
         private readonly bool $https,
+        private readonly string $requestId,
     ) {
     }
 
@@ -74,6 +75,7 @@ final class Request
             'public',
             null,
             $https,
+            self::newRequestId(),
         );
     }
 
@@ -159,6 +161,11 @@ final class Request
         return $this->https;
     }
 
+    public function requestId(): string
+    {
+        return $this->requestId;
+    }
+
     /**
      * @param array<string, string> $routeParameters
      */
@@ -175,6 +182,7 @@ final class Request
             $this->routeAccess,
             $this->authenticatedUser,
             $this->https,
+            $this->requestId,
         );
     }
 
@@ -191,6 +199,7 @@ final class Request
             $routeAccess,
             $this->authenticatedUser,
             $this->https,
+            $this->requestId,
         );
     }
 
@@ -207,6 +216,7 @@ final class Request
             $this->routeAccess,
             $user,
             $this->https,
+            $this->requestId,
         );
     }
 
@@ -256,5 +266,10 @@ final class Request
         $https = $server['HTTPS'] ?? null;
 
         return $https === true || $https === 1 || (is_string($https) && in_array(strtolower($https), ['on', '1'], true));
+    }
+
+    private static function newRequestId(): string
+    {
+        return bin2hex(random_bytes(16));
     }
 }

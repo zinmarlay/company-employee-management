@@ -35,6 +35,9 @@ $criteriaValue = static function (string $property) use ($criteria): string {
     $value = $criteria->{$property};
     return $value === null ? '' : (string) $value;
 };
+$keywordError = is_object($criteria) && property_exists($criteria, 'keywordError') && is_string($criteria->keywordError)
+    ? $criteria->keywordError
+    : null;
 $sortHref = static function (string $sort) use ($criteriaValue, $queryString): string {
     $direction = $criteriaValue('sort') === $sort && $criteriaValue('direction') === 'asc' ? 'desc' : 'asc';
     return $queryString(['sort' => $sort, 'direction' => $direction, 'page' => null]);
@@ -88,8 +91,9 @@ if (!is_string($departmentMetadataJson)) {
         <div class="form-grid">
             <div class="form-field form-field--wide">
                 <label for="employee_keyword"><?= $escape($t('employees.keyword')) ?></label>
-                <input id="employee_keyword" name="keyword" value="<?= $escape($criteriaValue('keyword')) ?>" placeholder="<?= $escape($t('employees.keyword_placeholder')) ?>">
+                <input id="employee_keyword" name="keyword" maxlength="254" value="<?= $escape($criteriaValue('keyword')) ?>" placeholder="<?= $escape($t('employees.keyword_placeholder')) ?>"<?= $keywordError !== null ? ' aria-invalid="true" aria-describedby="employee_keyword-error"' : '' ?>>
                 <p class="field-help"><?= $escape($t('employees.keyword_help')) ?></p>
+                <?php if ($keywordError !== null): ?><p id="employee_keyword-error" class="field-error" role="alert"><?= $escape($data['translator'] instanceof \App\Localization\Translator ? $data['translator']->validationMessage($keywordError) : $keywordError) ?></p><?php endif; ?>
             </div>
             <div class="form-field">
                 <label for="employee_branch_id"><?= $escape($t('form.branch')) ?></label>
@@ -257,55 +261,4 @@ if (!is_string($departmentMetadataJson)) {
     <?php endif; ?>
 </section>
 <script id="employee-search-department-data" type="application/json"><?= $departmentMetadataJson ?></script>
-<script>
-(() => {
-    const branchSelect = document.getElementById('employee_branch_id');
-    const departmentSelect = document.getElementById('employee_department_id');
-    const metadataElement = document.getElementById('employee-search-department-data');
-
-    if (!branchSelect || !departmentSelect || !metadataElement) {
-        return;
-    }
-
-    let departmentCatalog;
-    try {
-        departmentCatalog = JSON.parse(metadataElement.textContent || '[]');
-    } catch (error) {
-        return;
-    }
-
-    if (!Array.isArray(departmentCatalog)) {
-        return;
-    }
-
-    const renderDepartments = (branchId, selectedDepartmentId) => {
-        const departments = branchId === ''
-            ? departmentCatalog
-            : departmentCatalog.filter((department) => String(department.branch_id) === branchId);
-        const selectedId = departments.some((department) => String(department.id) === selectedDepartmentId)
-            ? selectedDepartmentId
-            : '';
-
-        departmentSelect.replaceChildren();
-        const allOption = document.createElement('option');
-        allOption.value = '';
-        allOption.textContent = departmentSelect.dataset.allLabel || '';
-        departmentSelect.append(allOption);
-
-        departments.forEach((department) => {
-            const option = document.createElement('option');
-            option.value = String(department.id);
-            option.textContent = department.label;
-            option.selected = String(department.id) === selectedId;
-            departmentSelect.append(option);
-        });
-
-        departmentSelect.value = selectedId;
-    };
-
-    renderDepartments(branchSelect.value, departmentSelect.value);
-    branchSelect.addEventListener('change', () => {
-        renderDepartments(branchSelect.value, departmentSelect.value);
-    });
-})();
-</script>
+<script src="/assets/js/employee-search.js" defer></script>

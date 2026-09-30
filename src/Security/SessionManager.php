@@ -13,8 +13,15 @@ final class SessionManager
     private const USER_ID_KEY = 'auth.user_id';
     private const CSRF_KEY = 'csrf.token';
 
+    public function __construct(private readonly bool $requireHttps = false)
+    {
+    }
+
     public function start(Request $request): void
     {
+        if ($this->requireHttps && !$request->isHttps()) {
+            throw new RuntimeException('HTTPS is required in production.');
+        }
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
@@ -27,6 +34,11 @@ final class SessionManager
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         ini_set('session.use_trans_sid', '0');
+        if (ini_get('session.use_strict_mode') !== '1'
+            || ini_get('session.use_only_cookies') !== '1'
+            || ini_get('session.use_trans_sid') !== '0') {
+            throw new RuntimeException('Required session security settings could not be applied.');
+        }
         session_set_cookie_params([
             'lifetime' => 0,
             'path' => '/',

@@ -9,6 +9,8 @@ use App\Application\Validation\DispatchContractInputValidator;
 use App\Domain\Dispatch\DispatchCompanyRepositoryInterface;
 use App\Domain\Dispatch\DispatchContractRepositoryInterface;
 use App\Domain\Employee\EmployeeRepositoryInterface;
+use App\Domain\Dispatch\DispatchContractEmployeeUnavailableException;
+use App\Domain\Dispatch\DispatchContractOverlapException;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -129,13 +131,24 @@ final class DispatchContractService
         }
 
         $now = $this->clock->nowUtc()->format('Y-m-d H:i:s');
-        if ($editing) {
-            $this->contracts->update((int) $current['id'], $validation->input, $now);
-            return ['success' => true, 'id' => (int) $current['id'], 'values' => $validation->values, 'errors' => []];
-        }
+        try {
+            if ($editing) {
+                $this->contracts->update((int) $current['id'], $validation->input, $now);
+                return ['success' => true, 'id' => (int) $current['id'], 'values' => $validation->values, 'errors' => []];
+            }
 
-        $id = $this->contracts->insert($validation->input, $now, $now);
-        return ['success' => true, 'id' => $id, 'values' => $validation->values, 'errors' => []];
+            $id = $this->contracts->insert($validation->input, $now, $now);
+            return ['success' => true, 'id' => $id, 'values' => $validation->values, 'errors' => []];
+        } catch (DispatchContractOverlapException) {
+            return $this->failure($validation->values, [
+                'start_date' => 'This contract overlaps an existing period.',
+                'end_date' => 'This contract overlaps an existing period.',
+            ], $current['id'] ?? null);
+        } catch (DispatchContractEmployeeUnavailableException) {
+            return $this->failure($validation->values, [
+                'employee_id' => 'Select an active dispatched employee.',
+            ], $current['id'] ?? null);
+        }
     }
 
     /** @return array<string, string> */

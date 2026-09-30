@@ -56,4 +56,12 @@ final class EmployeeSearchCriteriaParserTest extends TestCase
         self::assertSame('asc', $criteria->direction);
         self::assertSame(1, $criteria->page);
     }
+
+    public function testOversizedKeywordIsRejectedWithoutPassingItToSearch(): void
+    {
+        $criteria = (new EmployeeSearchCriteriaParser())->parse(['keyword' => str_repeat('x', 255)]);
+
+        self::assertNull($criteria->keyword);
+        self::assertSame('This field must be 254 characters or fewer.', $criteria->keywordError);
+    }
 }
