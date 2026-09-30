@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http;
 
+use App\Security\AuthenticatedUser;
+
 final class Request
 {
     /**
@@ -21,6 +23,9 @@ final class Request
         private readonly array $headers,
         private readonly array $cookies,
         private readonly array $routeParameters,
+        private readonly string $routeAccess,
+        private readonly ?AuthenticatedUser $authenticatedUser,
+        private readonly bool $https,
     ) {
     }
 
@@ -33,6 +38,7 @@ final class Request
             is_array($_POST) ? $_POST : [],
             self::headersFromServer($_SERVER),
             is_array($_COOKIE) ? $_COOKIE : [],
+            self::httpsFromServer($_SERVER),
         );
     }
 
@@ -49,6 +55,7 @@ final class Request
         array $bodyParameters = [],
         array $headers = [],
         array $cookies = [],
+        bool $https = false,
     ): self {
         $normalizedHeaders = [];
 
@@ -64,6 +71,9 @@ final class Request
             $normalizedHeaders,
             $cookies,
             [],
+            'public',
+            null,
+            $https,
         );
     }
 
@@ -134,6 +144,21 @@ final class Request
         return $this->routeParameters[$name] ?? $default;
     }
 
+    public function routeAccess(): string
+    {
+        return $this->routeAccess;
+    }
+
+    public function authenticatedUser(): ?AuthenticatedUser
+    {
+        return $this->authenticatedUser;
+    }
+
+    public function isHttps(): bool
+    {
+        return $this->https;
+    }
+
     /**
      * @param array<string, string> $routeParameters
      */
@@ -147,6 +172,41 @@ final class Request
             $this->headers,
             $this->cookies,
             $routeParameters,
+            $this->routeAccess,
+            $this->authenticatedUser,
+            $this->https,
+        );
+    }
+
+    public function withRouteAccess(string $routeAccess): self
+    {
+        return new self(
+            $this->method,
+            $this->path,
+            $this->queryParameters,
+            $this->bodyParameters,
+            $this->headers,
+            $this->cookies,
+            $this->routeParameters,
+            $routeAccess,
+            $this->authenticatedUser,
+            $this->https,
+        );
+    }
+
+    public function withAuthenticatedUser(?AuthenticatedUser $user): self
+    {
+        return new self(
+            $this->method,
+            $this->path,
+            $this->queryParameters,
+            $this->bodyParameters,
+            $this->headers,
+            $this->cookies,
+            $this->routeParameters,
+            $this->routeAccess,
+            $user,
+            $this->https,
         );
     }
 
@@ -188,5 +248,13 @@ final class Request
         }
 
         return $path === '/' ? '/' : rtrim($path, '/');
+    }
+
+    /** @param array<string, mixed> $server */
+    private static function httpsFromServer(array $server): bool
+    {
+        $https = $server['HTTPS'] ?? null;
+
+        return $https === true || $https === 1 || (is_string($https) && in_array(strtolower($https), ['on', '1'], true));
     }
 }

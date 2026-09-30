@@ -21,6 +21,7 @@ $error = static function (string $field) use ($errors, $escape, $translator): st
 $attributes = static fn (string $field): string => isset($errors[$field]) ? ' aria-invalid="true" aria-describedby="' . $escape($field . '-error') . '"' : '';
 ?>
 <form class="card form-card" method="post" action="<?= $escape($action) ?>">
+    <?php include __DIR__ . '/../partials/csrf-field.php'; ?>
     <?php if ($errors !== []): ?><div class="alert alert--danger" role="alert"><strong><?= $escape($t('form.correct_fields')) ?></strong><span><?= $escape($t('form.submitted_values_kept')) ?></span></div><?php endif; ?>
     <div class="form-card__header"><div><p class="eyebrow"><?= $escape($t('employees.portfolio')) ?></p><h2><?= $escape($t($data['formTitleKey'] ?? 'employees.skills_create_title')) ?></h2></div><p class="required-note"><span aria-hidden="true">*</span> <?= $escape($t('form.required_fields')) ?></p></div>
     <div class="form-grid">
@@ -31,4 +32,3 @@ $attributes = static fn (string $field): string => isset($errors[$field]) ? ' ar
     </div>
     <div class="form-actions"><a class="button button--secondary" href="<?= $escape($cancelHref) ?>"><?= $escape($t('actions.cancel')) ?></a><button class="button button--primary" type="submit"><?= $escape($t($data['formSubmitLabelKey'] ?? 'actions.save_changes')) ?></button></div>
 </form>
-

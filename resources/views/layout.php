@@ -14,14 +14,19 @@ $appName = HtmlEscaper::escape($appNameValue);
 $activeNav = (string) ($data['activeNav'] ?? '');
 $currentPath = (string) ($data['currentPath'] ?? '/');
 $content = (string) ($data['content'] ?? '');
+$authenticatedUser = $data['authenticatedUser'] ?? null;
+$isAdmin = is_object($authenticatedUser) && method_exists($authenticatedUser, 'isAdmin') && $authenticatedUser->isAdmin();
 $navigation = [
-    ['key' => 'dashboard', 'labelKey' => 'navigation.dashboard', 'href' => '/', 'icon' => '⌂', 'available' => true],
-    ['key' => 'employees', 'labelKey' => 'navigation.employees', 'href' => '/employees', 'icon' => '●', 'available' => true],
-    ['key' => 'branches', 'labelKey' => 'navigation.branches', 'href' => '/branches', 'icon' => '⌖', 'available' => true],
-    ['key' => 'departments', 'labelKey' => 'navigation.departments', 'href' => '/departments', 'icon' => '▦', 'available' => true],
-    ['key' => 'dispatch-companies', 'labelKey' => 'navigation.dispatch_companies', 'href' => '/dispatch-companies', 'icon' => '▱', 'available' => true],
-    ['key' => 'dispatch-contracts', 'labelKey' => 'navigation.dispatch_contracts', 'href' => '/dispatch-contracts/create', 'icon' => '▤', 'available' => true],
+    ['key' => 'dashboard', 'labelKey' => 'navigation.dashboard', 'href' => '/', 'icon' => '⌂'],
+    ['key' => 'employees', 'labelKey' => 'navigation.employees', 'href' => '/employees', 'icon' => '●'],
+    ['key' => 'branches', 'labelKey' => 'navigation.branches', 'href' => '/branches', 'icon' => '⌖'],
+    ['key' => 'departments', 'labelKey' => 'navigation.departments', 'href' => '/departments', 'icon' => '▦'],
+    ['key' => 'dispatch-companies', 'labelKey' => 'navigation.dispatch_companies', 'href' => '/dispatch-companies', 'icon' => '▱'],
+    ['key' => 'dispatch-contracts', 'labelKey' => 'navigation.dispatch_contracts', 'href' => '/dispatch-contracts/create', 'icon' => '▤'],
 ];
+if ($isAdmin) {
+    $navigation[] = ['key' => 'system-users', 'labelKey' => 'navigation.system_users', 'href' => '/system-users', 'icon' => '◎'];
+}
 $localeUrl = static function (string $nextLocale) use ($currentPath): string {
     $separator = str_contains($currentPath, '?') ? '&' : '?';
 
@@ -47,26 +52,20 @@ $localeUrl = static function (string $nextLocale) use ($currentPath): string {
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <p class="nav-label"><?= HtmlEscaper::escape($t('shell.workspace')) ?></p>
-            <?php foreach ($navigation as $item): ?>
-                <?php $isActive = $activeNav === $item['key']; ?>
-                <?php if ($item['available']): ?>
+        <?php if (is_object($authenticatedUser)): ?>
+            <nav class="sidebar-nav">
+                <p class="nav-label"><?= HtmlEscaper::escape($t('shell.workspace')) ?></p>
+                <?php foreach ($navigation as $item): ?>
+                    <?php $isActive = $activeNav === $item['key']; ?>
                     <a class="nav-item<?= $isActive ? ' nav-item--active' : '' ?>"
                        href="<?= HtmlEscaper::escape($item['href']) ?>"
                        <?= $isActive ? 'aria-current="page"' : '' ?>>
                         <span class="nav-icon" aria-hidden="true"><?= HtmlEscaper::escape($item['icon']) ?></span>
                         <span><?= HtmlEscaper::escape($t($item['labelKey'])) ?></span>
                     </a>
-                <?php else: ?>
-                    <span class="nav-item nav-item--disabled" aria-disabled="true">
-                        <span class="nav-icon" aria-hidden="true"><?= HtmlEscaper::escape($item['icon']) ?></span>
-                        <span><?= HtmlEscaper::escape($t($item['labelKey'])) ?></span>
-                        <span class="nav-badge"><?= HtmlEscaper::escape($t('navigation.soon')) ?></span>
-                    </span>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </nav>
+                <?php endforeach; ?>
+            </nav>
+        <?php endif; ?>
 
         <div class="sidebar-footer">
             <span class="sidebar-footer__dot" aria-hidden="true"></span>
@@ -85,10 +84,16 @@ $localeUrl = static function (string $nextLocale) use ($currentPath): string {
                     <a class="locale-link<?= $locale === 'en' ? ' locale-link--active' : '' ?>" href="<?= HtmlEscaper::escape($localeUrl('en')) ?>"<?= $locale === 'en' ? ' aria-current="true"' : '' ?>>EN</a>
                     <a class="locale-link<?= $locale === 'ja' ? ' locale-link--active' : '' ?>" href="<?= HtmlEscaper::escape($localeUrl('ja')) ?>"<?= $locale === 'ja' ? ' aria-current="true"' : '' ?>>日本語</a>
                 </nav>
-                <div class="topbar-account" aria-label="<?= HtmlEscaper::escape($t('shell.account_placeholder')) ?>">
-                <span class="avatar" aria-hidden="true">A</span>
-                <span class="topbar-account__text"><?= HtmlEscaper::escape($t('shell.administrator')) ?></span>
-                </div>
+                <?php if (is_object($authenticatedUser)): ?>
+                    <div class="topbar-account" aria-label="<?= HtmlEscaper::escape($authenticatedUser->name) ?>">
+                        <span class="avatar" aria-hidden="true"><?= HtmlEscaper::escape(mb_strtoupper(mb_substr($authenticatedUser->name, 0, 1))) ?></span>
+                        <span class="topbar-account__text"><?= HtmlEscaper::escape($authenticatedUser->name) ?> · <?= HtmlEscaper::escape($t($authenticatedUser->isAdmin() ? 'system_users.admin' : 'system_users.user')) ?></span>
+                        <form method="post" action="/logout" class="topbar-account__form">
+                            <?php include __DIR__ . '/partials/csrf-field.php'; ?>
+                            <button class="button button--text" type="submit"><?= HtmlEscaper::escape($t('auth.sign_out')) ?></button>
+                        </form>
+                    </div>
+                <?php endif; ?>
             </div>
         </header>
 

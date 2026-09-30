@@ -69,6 +69,7 @@ final class DatabaseIntegrationTest extends TestCase
     protected function tearDown(): void
     {
         if ($this->pdo instanceof PDO) {
+            $this->pdo->exec('DROP TABLE IF EXISTS system_users');
             $this->pdo->exec('DROP TABLE IF EXISTS employee_certifications');
             $this->pdo->exec('DROP TABLE IF EXISTS employee_projects');
             $this->pdo->exec('DROP TABLE IF EXISTS employee_skills');
@@ -136,13 +137,13 @@ final class DatabaseIntegrationTest extends TestCase
             new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'),
         );
 
-        self::assertSame(7, $runner->migrate());
+        self::assertSame(8, $runner->migrate());
         self::assertSame(0, $runner->migrate());
-        self::assertCount(7, $runner->status());
-        self::assertSame(11, (int) $this->pdo?->query(
+        self::assertCount(8, $runner->status());
+        self::assertSame(12, (int) $this->pdo?->query(
             "SELECT COUNT(*) FROM information_schema.tables "
             . "WHERE table_schema = DATABASE() AND table_name IN "
-            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts', 'employee_code_sequences', 'skills', 'employee_skills', 'employee_projects', 'employee_certifications')",
+            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts', 'employee_code_sequences', 'skills', 'employee_skills', 'employee_projects', 'employee_certifications', 'system_users')",
         )->fetchColumn());
 
         $suffix = bin2hex(random_bytes(4));
@@ -211,11 +212,11 @@ final class DatabaseIntegrationTest extends TestCase
             'DELETE FROM departments WHERE id = :id',
         )->execute(['id' => $tokyoDepartmentId]));
 
-        self::assertSame(7, $runner->rollback());
+        self::assertSame(8, $runner->rollback());
         self::assertSame(0, (int) $this->pdo?->query(
             "SELECT COUNT(*) FROM information_schema.tables "
             . "WHERE table_schema = DATABASE() AND table_name IN "
-            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts', 'employee_code_sequences', 'skills', 'employee_skills', 'employee_projects', 'employee_certifications')",
+            . "('companies', 'branches', 'departments', 'employees', 'dispatch_companies', 'dispatch_contracts', 'employee_code_sequences', 'skills', 'employee_skills', 'employee_projects', 'employee_certifications', 'system_users')",
         )->fetchColumn());
     }
 
@@ -332,6 +333,7 @@ final class DatabaseIntegrationTest extends TestCase
 
     private function resetTestSchema(): void
     {
+        $this->pdo?->exec('DROP TABLE IF EXISTS system_users');
         $this->pdo?->exec('DROP TABLE IF EXISTS employee_certifications');
         $this->pdo?->exec('DROP TABLE IF EXISTS employee_projects');
         $this->pdo?->exec('DROP TABLE IF EXISTS employee_skills');

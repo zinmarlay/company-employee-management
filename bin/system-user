@@ -1,0 +1,88 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Application\Support\SystemClock;
+use App\Application\SystemUser\SystemUserService;
+use App\Application\Validation\SystemUserInputValidator;
+use App\Bootstrap\Configuration;
+use App\Bootstrap\EnvironmentLoader;
+use App\Database\LazyPdoConnection;
+use App\Domain\SystemUser\SystemUserDuplicateException;
+use App\Infrastructure\Persistence\PdoSystemUserRepository;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+if (($argv[1] ?? null) !== 'create-admin' || count($argv) !== 2) {
+    fwrite(STDERR, "Usage: php bin/system-user create-admin\n");
+    exit(2);
+}
+
+function readRequired(string $label): string
+{
+    do {
+        fwrite(STDOUT, $label . ': ');
+        $value = trim((string) fgets(STDIN));
+    } while ($value === '');
+
+    return $value;
+}
+
+function readSecret(string $label): string
+{
+    fwrite(STDOUT, $label . ': ');
+    $isTty = function_exists('posix_isatty') && posix_isatty(STDIN);
+    $stty = $isTty ? shell_exec('stty -g') : null;
+
+    if ($isTty) {
+        shell_exec('stty -echo');
+    }
+
+    try {
+        $value = rtrim((string) fgets(STDIN), "\r\n");
+    } finally {
+        if ($isTty && is_string($stty) && $stty !== '') {
+            shell_exec('stty ' . trim($stty));
+            fwrite(STDOUT, "\n");
+        }
+    }
+
+    return $value;
+}
+
+try {
+    $projectRoot = dirname(__DIR__);
+    EnvironmentLoader::load($projectRoot);
+    $configuration = Configuration::fromEnvironment($projectRoot . '/config/app.php');
+    $repository = new PdoSystemUserRepository(new LazyPdoConnection($configuration));
+    $service = new SystemUserService($repository, new SystemUserInputValidator(), new SystemClock());
+    $name = readRequired('Name');
+    $email = readRequired('Email');
+    $password = readSecret('Password');
+    $confirmation = readSecret('Confirm password');
+    $result = $service->validateCreate([
+        'name' => $name,
+        'email' => $email,
+        'role' => 'ADMIN',
+        'password' => $password,
+        'password_confirmation' => $confirmation,
+    ]);
+
+    if (!$result->isValid()) {
+        foreach ($result->errors as $error) {
+            fwrite(STDERR, $error . "\n");
+        }
+        exit(1);
+    }
+
+    $id = $service->create($result->input);
+    fwrite(STDOUT, sprintf("Created administrator account #%d.\n", $id));
+    exit(0);
+} catch (SystemUserDuplicateException) {
+    fwrite(STDERR, "A system user with this email already exists.\n");
+    exit(1);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'System-user bootstrap failed: ' . $exception->getMessage() . "\n");
+    exit(1);
+}

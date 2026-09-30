@@ -9,6 +9,7 @@ use App\Application\Employee\EmployeeSkillService;
 use App\Application\Employee\EmployeeProjectService;
 use App\Application\Employee\EmployeeCertificationService;
 use App\Application\Employee\EmployeePortfolioSummaryService;
+use App\Application\SystemUser\SystemUserService;
 use App\Application\Dispatch\ContractExpirationClassifier;
 use App\Application\Dispatch\DispatchCompanyService;
 use App\Application\Dispatch\DispatchContractService;
@@ -24,11 +25,13 @@ use App\Application\Validation\EmployeeInputValidator;
 use App\Application\Validation\EmployeeSkillInputValidator;
 use App\Application\Validation\EmployeeProjectInputValidator;
 use App\Application\Validation\EmployeeCertificationInputValidator;
+use App\Application\Validation\SystemUserInputValidator;
 use App\Domain\Organization\PrefectureCatalog;
 use App\Domain\Organization\DepartmentCatalog;
 use App\Database\LazyPdoConnection;
 use App\Http\ExceptionResponder;
 use App\Http\HttpKernel;
+use App\Http\SecurityErrorResponder;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeSkillController;
 use App\Http\Controllers\EmployeeProjectController;
@@ -38,7 +41,13 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DispatchCompanyController;
 use App\Http\Controllers\DispatchContractController;
 use App\Http\Controllers\SetupController;
+use App\Http\Controllers\LoginController;
+use App\Http\Controllers\SystemUserController;
+use App\Http\Middleware\AuthenticationMiddleware;
+use App\Http\Middleware\AuthorizationMiddleware;
+use App\Http\Middleware\CsrfMiddleware;
 use App\Http\Middleware\LocaleMiddleware;
+use App\Http\Middleware\SessionMiddleware;
 use App\Infrastructure\Persistence\PdoBranchReadRepository;
 use App\Infrastructure\Persistence\PdoBranchRepository;
 use App\Infrastructure\Persistence\PdoDepartmentReadRepository;
@@ -49,9 +58,14 @@ use App\Infrastructure\Persistence\PdoEmployeeProjectRepository;
 use App\Infrastructure\Persistence\PdoEmployeeCertificationRepository;
 use App\Infrastructure\Persistence\PdoDispatchCompanyRepository;
 use App\Infrastructure\Persistence\PdoDispatchContractRepository;
+use App\Infrastructure\Persistence\PdoSystemUserRepository;
 use App\Localization\Translator;
 use App\Http\Routing\Router;
 use App\Http\View\ViewRenderer;
+use App\Security\AuthenticationContext;
+use App\Security\AuthenticationService;
+use App\Security\CsrfTokenManager;
+use App\Security\SessionManager;
 
 final class ApplicationBootstrap
 {
@@ -65,7 +79,10 @@ final class ApplicationBootstrap
         date_default_timezone_set($configuration->timezone());
 
         $translator = new Translator($this->projectRoot . '/resources/lang');
-        $viewRenderer = new ViewRenderer($this->projectRoot . '/resources/views', $translator);
+        $session = new SessionManager();
+        $csrf = new CsrfTokenManager($session);
+        $authenticationContext = new AuthenticationContext();
+        $viewRenderer = new ViewRenderer($this->projectRoot . '/resources/views', $translator, $csrf, $authenticationContext);
         $setupController = new SetupController($viewRenderer, $configuration);
         $connection = new LazyPdoConnection($configuration);
         $dispatchCompanies = new PdoDispatchCompanyRepository($connection);
@@ -79,6 +96,7 @@ final class ApplicationBootstrap
         $skillRepository = new PdoSkillRepository($connection);
         $projectRepository = new PdoEmployeeProjectRepository($connection);
         $certificationRepository = new PdoEmployeeCertificationRepository($connection);
+        $systemUserRepository = new PdoSystemUserRepository($connection);
         $employeeService = new EmployeeService(
             $employeeRepository,
             new PdoBranchReadRepository($connection),
@@ -101,6 +119,11 @@ final class ApplicationBootstrap
         $skillController = new EmployeeSkillController($viewRenderer, $skillService);
         $projectController = new EmployeeProjectController($viewRenderer, $projectService);
         $certificationController = new EmployeeCertificationController($viewRenderer, $certificationService);
+        $systemUserService = new SystemUserService($systemUserRepository, new SystemUserInputValidator(), $clock);
+        $authenticationService = new AuthenticationService($systemUserRepository, $session, $csrf, $clock);
+        $securityErrors = new SecurityErrorResponder($viewRenderer);
+        $loginController = new LoginController($viewRenderer, $authenticationService, $session);
+        $systemUserController = new SystemUserController($viewRenderer, $systemUserService, $securityErrors);
         $branchService = new BranchService($branches, $departments, new BranchInputValidator(), $clock, new PrefectureCatalog(), $displayNames, $translator);
         $departmentService = new DepartmentService($departments, $branches, new DepartmentInputValidator(), $clock, new DepartmentCatalog(), $displayNames, $translator);
         $dispatchCompanyService = new DispatchCompanyService(
@@ -136,11 +159,19 @@ final class ApplicationBootstrap
             $skillController,
             $projectController,
             $certificationController,
+            $loginController,
+            $systemUserController,
         );
 
         return new HttpKernel(
             $router,
-            [new LocaleMiddleware($translator)],
+            [
+                new SessionMiddleware($session),
+                new LocaleMiddleware($translator),
+                new AuthenticationMiddleware($session, $systemUserRepository, $authenticationContext),
+                new AuthorizationMiddleware($securityErrors),
+                new CsrfMiddleware($csrf, $securityErrors),
+            ],
             new ExceptionResponder($configuration->isDebug()),
         );
     }

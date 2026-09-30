@@ -53,7 +53,7 @@ final class DispatchRepositoryIntegrationTest extends TestCase
 
         $this->resetSchema();
         $runner = new MigrationRunner($this->pdo, new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations'));
-        self::assertSame(7, $runner->migrate());
+        self::assertSame(8, $runner->migrate());
         $configuration = Configuration::fromEnvironment(dirname(__DIR__, 3) . '/config/app.php', $environment);
         $connection = new LazyPdoConnection($configuration);
         $this->companies = new PdoDispatchCompanyRepository($connection);
@@ -129,6 +129,7 @@ final class DispatchRepositoryIntegrationTest extends TestCase
 
     private function resetSchema(): void
     {
+        $this->pdo?->exec('DROP TABLE IF EXISTS system_users');
         $this->pdo?->exec('DROP TABLE IF EXISTS employee_certifications');
         $this->pdo?->exec('DROP TABLE IF EXISTS employee_projects');
         $this->pdo?->exec('DROP TABLE IF EXISTS employee_skills');

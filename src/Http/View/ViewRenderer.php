@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\View;
 
 use App\Localization\Translator;
+use App\Security\AuthenticationContext;
+use App\Security\CsrfTokenManager;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
@@ -16,6 +18,8 @@ final class ViewRenderer
     public function __construct(
         private readonly string $viewsRoot,
         ?Translator $translator = null,
+        private readonly ?CsrfTokenManager $csrfTokens = null,
+        private readonly ?AuthenticationContext $authenticationContext = null,
     ) {
         $this->translator = $translator ?? new Translator(dirname($viewsRoot) . '/lang');
     }
@@ -25,6 +29,10 @@ final class ViewRenderer
      */
     public function render(string $view, array $data = []): string
     {
+        if ($this->csrfTokens !== null) {
+            $data['csrfToken'] = $this->csrfTokens->token();
+        }
+
         $templatePath = $this->resolve($view);
         $data['translator'] = $this->translator;
         $data['locale'] = $this->translator->locale();
@@ -48,6 +56,19 @@ final class ViewRenderer
      */
     public function renderPage(string $view, array $data = [], string $layout = 'layout'): string
     {
+        if ($this->csrfTokens !== null) {
+            $data['csrfToken'] = $this->csrfTokens->token();
+        }
+
+        if ($this->authenticationContext !== null) {
+            $data['authenticatedUser'] = $this->authenticationContext->user();
+            $data['isAdmin'] = $this->authenticationContext->user()?->isAdmin() ?? false;
+        } else {
+            // Standalone controller/view tests do not install the security
+            // composition root and retain their pre-Phase-10 presentation.
+            $data['isAdmin'] = true;
+        }
+
         if (isset($data['pageTitleKey']) && is_string($data['pageTitleKey'])) {
             $data['pageTitle'] = $this->translator->get($data['pageTitleKey']);
         }

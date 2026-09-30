@@ -6,6 +6,7 @@ namespace Tests\Unit\Database;
 
 use App\Database\Seed\DevelopmentSeedSafety;
 use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class DevelopmentSeedSafetyTest extends TestCase
@@ -17,7 +18,7 @@ final class DevelopmentSeedSafetyTest extends TestCase
         self::expectNotToPerformAssertions();
     }
 
-    /** @dataProvider unsafeConfigurationProvider */
+    #[DataProvider('unsafeConfigurationProvider')]
     public function testUnsafeConfigurationIsRejected(string $environment, string $database, string $message): void
     {
         $this->expectException(InvalidArgumentException::class);

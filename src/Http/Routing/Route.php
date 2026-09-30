@@ -19,6 +19,7 @@ final class Route
         array $methods,
         string $pattern,
         private readonly mixed $handler,
+        private readonly string $access = 'public',
     ) {
         if ($methods === []) {
             throw new InvalidArgumentException('A route must support at least one HTTP method.');
@@ -37,6 +38,9 @@ final class Route
         }
 
         $this->methods = array_keys($normalizedMethods);
+        if (!in_array($this->access, ['public', 'authenticated', 'authenticated_read', 'admin'], true)) {
+            throw new InvalidArgumentException('Route access must be public, authenticated, authenticated_read, or admin.');
+        }
         $this->normalizedPattern = self::normalizePattern($pattern);
         $this->pathRegex = self::compilePattern($this->normalizedPattern);
     }
@@ -60,6 +64,11 @@ final class Route
     public function handler(): mixed
     {
         return $this->handler;
+    }
+
+    public function access(): string
+    {
+        return $this->access;
     }
 
     public function supportsMethod(string $method): bool

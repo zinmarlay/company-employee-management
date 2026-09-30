@@ -93,6 +93,12 @@ final class Translator
             'Expiration date must be on or after obtained date.' => 'validation.certification_date_order_end',
             'This Employee already has this skill.' => 'validation.duplicate_skill',
             'This certification already exists for this Employee and obtained date.' => 'validation.duplicate_certification',
+            'Select a valid role.' => 'validation.role',
+            'Enter a password.' => 'validation.password',
+            'Password must be at least 12 characters.' => 'validation.password_min',
+            'Password must be 128 bytes or fewer.' => 'validation.password_max',
+            'Password confirmation does not match.' => 'validation.password_confirmation',
+            'A system user with this email already exists.' => 'validation.duplicate_system_user_email',
         ];
 
         if (isset($directMessages[$message])) {

@@ -57,4 +57,14 @@ final class RouterTest extends TestCase
 
         $router->get('/setup', $handler);
     }
+
+    public function testRouteCarriesExplicitTrustedAccessMetadata(): void
+    {
+        $router = new Router();
+        $router->get('/system-users', static fn (): never => throw new \LogicException(), 'admin');
+
+        $match = $router->match(Request::fromValues('GET', '/system-users'));
+
+        self::assertSame('admin', $match->route()->access());
+    }
 }

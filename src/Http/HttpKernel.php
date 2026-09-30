@@ -27,7 +27,9 @@ final class HttpKernel
     {
         try {
             $match = $this->router->match($request);
-            $routeRequest = $request->withRouteParameters($match->parameters());
+            $routeRequest = $request
+                ->withRouteParameters($match->parameters())
+                ->withRouteAccess($match->route()->access());
             $handler = $match->route()->handler();
 
             $terminalHandler = new CallableRequestHandler(

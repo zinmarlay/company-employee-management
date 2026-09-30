@@ -8,6 +8,14 @@ $t = $data['t'] ?? static fn (string $key, array $replace = []): string => $key;
 $eyebrow = isset($data['pageEyebrowKey']) ? $t((string) $data['pageEyebrowKey']) : ($data['pageEyebrow'] ?? null);
 $description = isset($data['pageDescriptionKey']) ? $t((string) $data['pageDescriptionKey']) : ($data['pageDescription'] ?? null);
 $actions = is_array($data['pageActions'] ?? null) ? $data['pageActions'] : [];
+$isAdmin = (bool) ($data['isAdmin'] ?? false);
+$actions = array_values(array_filter($actions, static function (mixed $action) use ($isAdmin): bool {
+    if ($isAdmin || !is_array($action)) {
+        return true;
+    }
+
+    return preg_match('#/(?:create|edit|activate|deactivate|archive|renew)(?:/|\?|$)#', (string) ($action['href'] ?? '')) !== 1;
+}));
 $escape = static fn (mixed $value): string => HtmlEscaper::escape($value);
 ?>
 <div class="page-header">

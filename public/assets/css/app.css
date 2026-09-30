@@ -204,11 +204,6 @@ a.nav-item:hover,
     box-shadow: inset 3px 0 0 #bfcaff;
 }
 
-.nav-item--disabled {
-    color: #7180a9;
-    cursor: default;
-}
-
 .nav-icon {
     display: grid;
     width: 19px;
@@ -216,22 +211,6 @@ a.nav-item:hover,
     color: #aebcf0;
     font-size: 1.05rem;
     line-height: 1;
-}
-
-.nav-item--disabled .nav-icon {
-    color: #637198;
-}
-
-.nav-badge {
-    margin-left: auto;
-    padding: 2px 6px;
-    border: 1px solid rgba(151, 167, 211, 0.24);
-    border-radius: 99px;
-    color: #8c9bc3;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
 }
 
 .sidebar-footer {
@@ -613,6 +592,18 @@ a.nav-item:hover,
     text-align: left;
 }
 
+.system-users-table {
+    min-width: 980px;
+    table-layout: fixed;
+}
+
+.system-users-table__col--name { width: 20%; }
+.system-users-table__col--email { width: 27%; }
+.system-users-table__col--role { width: 17%; }
+.system-users-table__col--status { width: 14%; }
+.system-users-table__col--last-login { width: 14%; }
+.system-users-table__col--actions { width: 8%; }
+
 .data-table th,
 .data-table td {
     padding: 15px 20px;
@@ -633,6 +624,29 @@ a.nav-item:hover,
 .data-table td {
     color: var(--color-text-muted);
     font-size: 0.9rem;
+}
+
+.system-users-table td {
+    padding-top: 18px;
+    padding-bottom: 18px;
+}
+
+.system-users-table__cell--email {
+    overflow-wrap: anywhere;
+}
+
+.system-users-table__cell--role,
+.system-users-table__cell--status,
+.system-users-table__cell--last-login {
+    white-space: nowrap;
+}
+
+.system-users-table__cell--actions {
+    text-align: right;
+}
+
+.system-users-table__cell--actions .table-actions {
+    justify-content: flex-end;
 }
 
 .data-table tbody tr:last-child td {
@@ -745,6 +759,17 @@ a.nav-item:hover,
     color: var(--color-text);
     font-size: 0.9rem;
     font-weight: 750;
+}
+
+.form-section-label {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    font-weight: 750;
+}
+
+.system-user-password-help {
+    margin-top: 3px;
 }
 
 .form-field input,
@@ -977,6 +1002,11 @@ a.nav-item:hover,
 .confirmation-icon--danger {
     color: var(--color-danger);
     background: var(--color-danger-soft);
+}
+
+.confirmation-icon--success {
+    color: var(--color-success);
+    background: var(--color-success-soft);
 }
 
 .confirmation-card h2 {

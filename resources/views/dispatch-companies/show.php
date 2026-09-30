@@ -44,5 +44,5 @@ $id = (int) ($company['id'] ?? 0);
             <?php endif; ?>
         </article>
     </div>
-    <?php if (($company['status'] ?? null) === 'active'): ?><div class="detail-footer-actions"><a class="button button--danger" href="/dispatch-companies/<?= $id ?>/deactivate"><?= $escape($t('actions.deactivate_company')) ?></a></div><?php endif; ?>
+    <?php if (($company['status'] ?? null) === 'active' && ($data['isAdmin'] ?? false)): ?><div class="detail-footer-actions"><a class="button button--danger" href="/dispatch-companies/<?= $id ?>/deactivate"><?= $escape($t('actions.deactivate_company')) ?></a></div><?php endif; ?>
 </section>

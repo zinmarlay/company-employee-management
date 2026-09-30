@@ -48,6 +48,7 @@ $selectedDepartment = (string) ($values['department_id'] ?? '');
 $employeeCode = $data['employeeCode'] ?? null;
 ?>
 <form class="card form-card" method="post" action="<?= $escape($action) ?>">
+    <?php include __DIR__ . '/../partials/csrf-field.php'; ?>
     <?php if ($errors !== []): ?>
         <div class="alert alert--danger" role="alert">
             <strong><?= $escape($t('form.correct_fields')) ?></strong>

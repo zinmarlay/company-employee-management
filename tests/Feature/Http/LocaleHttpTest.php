@@ -14,12 +14,12 @@ final class LocaleHttpTest extends TestCase
     {
         $kernel = (new ApplicationBootstrap(dirname(__DIR__, 3)))->boot();
 
-        $response = $kernel->handle(Request::fromValues('GET', '/', ['lang' => 'ja']));
+        $response = $kernel->handle(Request::fromValues('GET', '/login', ['lang' => 'ja']));
 
         self::assertSame(200, $response->statusCode());
         self::assertStringContainsString('<html lang="ja">', $response->body());
         self::assertStringContainsString('ダッシュボード', $response->body());
-        self::assertStringContainsString('会社管理', $response->body());
+        self::assertStringContainsString('ログイン', $response->body());
         self::assertSame('app_locale=ja; Max-Age=31536000; Path=/; SameSite=Lax', $response->header('Set-Cookie'));
     }
 
@@ -27,7 +27,7 @@ final class LocaleHttpTest extends TestCase
     {
         $kernel = (new ApplicationBootstrap(dirname(__DIR__, 3)))->boot();
 
-        $response = $kernel->handle(Request::fromValues('GET', '/', [], [], [], ['app_locale' => 'ja']));
+        $response = $kernel->handle(Request::fromValues('GET', '/login', [], [], [], ['app_locale' => 'ja']));
 
         self::assertSame(200, $response->statusCode());
         self::assertStringContainsString('<html lang="ja">', $response->body());
@@ -38,7 +38,7 @@ final class LocaleHttpTest extends TestCase
     {
         $kernel = (new ApplicationBootstrap(dirname(__DIR__, 3)))->boot();
 
-        $response = $kernel->handle(Request::fromValues('GET', '/', ['lang' => 'fr'], [], [], ['app_locale' => 'ja']));
+        $response = $kernel->handle(Request::fromValues('GET', '/login', ['lang' => 'fr'], [], [], ['app_locale' => 'ja']));
 
         self::assertSame(200, $response->statusCode());
         self::assertStringContainsString('<html lang="en">', $response->body());

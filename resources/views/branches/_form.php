@@ -33,6 +33,7 @@ $attributes = static function (string $field) use ($errors, $escape): string {
 $currentPrefectureLabel = $branch['prefecture_display_label'] ?? ($branch['prefecture_label_en'] ?? ($branch['prefecture_label_ja'] ?? $value('prefecture_code')));
 ?>
 <form class="card form-card" method="post" action="<?= $escape($action) ?>">
+    <?php include __DIR__ . '/../partials/csrf-field.php'; ?>
     <?php if ($errors !== []): ?>
         <div class="alert alert--danger" role="alert"><strong><?= $escape($t('form.correct_fields')) ?></strong> <span><?= $escape($t('form.submitted_values_kept')) ?></span></div>
     <?php endif; ?>

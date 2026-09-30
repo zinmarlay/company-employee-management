@@ -27,6 +27,7 @@ $attributes = static function (string $field) use ($errors, $escape): string {
 };
 ?>
 <form class="card form-card" method="post" action="<?= $escape($action) ?>">
+    <?php include __DIR__ . '/../partials/csrf-field.php'; ?>
     <?php if ($errors !== []): ?><div class="alert alert--danger" role="alert"><strong><?= $escape($t('form.correct_fields')) ?></strong><span><?= $escape($t('form.submitted_values_kept')) ?></span></div><?php endif; ?>
     <?php if ($source !== null): ?><div class="alert alert--info" role="status"><?= $escape($t('dispatch_contracts.source_contract')) ?>: <span class="code-text">#<?= (int) $source['id'] ?></span> <?= $escape($source['start_date']) ?> → <?= $escape($source['end_date']) ?></div><?php endif; ?>
     <div class="form-card__header"><div><p class="eyebrow"><?= $escape($t('dispatch_contracts.contract_information')) ?></p><h2><?= $escape($t($submitKey === 'actions.create_contract' ? 'dispatch_contracts.create_title' : ($submitKey === 'actions.renew_contract' ? 'dispatch_contracts.renew_title' : 'dispatch_contracts.edit_title'))) ?></h2></div><p class="required-note"><span aria-hidden="true">*</span> <?= $escape($t('form.required_fields')) ?></p></div>

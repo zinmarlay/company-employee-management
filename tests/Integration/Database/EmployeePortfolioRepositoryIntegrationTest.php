@@ -63,7 +63,7 @@ final class EmployeePortfolioRepositoryIntegrationTest extends TestCase
             'DB_PASSWORD' => getenv('DB_TEST_PASSWORD'),
             'DB_CHARSET' => getenv('DB_TEST_CHARSET'),
         ]);
-        self::assertSame(7, (new MigrationRunner($this->pdo(), new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations')))->migrate());
+        self::assertSame(8, (new MigrationRunner($this->pdo(), new MigrationDiscovery(dirname(__DIR__, 3) . '/database/migrations')))->migrate());
 
         $companyId = $this->insertCompany('portfolio-' . bin2hex(random_bytes(3)));
         $branchId = $this->insertBranch($companyId);
@@ -160,9 +160,8 @@ final class EmployeePortfolioRepositoryIntegrationTest extends TestCase
     {
         $pdo = $this->pdo;
         if (!$pdo instanceof PDO) return;
-        foreach (['employee_certifications', 'employee_projects', 'employee_skills', 'skills', 'dispatch_contracts', 'dispatch_companies', 'employee_code_sequences', 'employees', 'departments', 'branches', 'companies', 'schema_migrations'] as $table) {
+        foreach (['system_users', 'employee_certifications', 'employee_projects', 'employee_skills', 'skills', 'dispatch_contracts', 'dispatch_companies', 'employee_code_sequences', 'employees', 'departments', 'branches', 'companies', 'schema_migrations'] as $table) {
             $pdo->exec('DROP TABLE IF EXISTS ' . $table);
         }
     }
 }
-

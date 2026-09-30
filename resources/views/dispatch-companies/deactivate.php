@@ -20,6 +20,6 @@ $id = (int) ($company['id'] ?? 0);
     <?php if (($company['status'] ?? null) === 'inactive'): ?>
         <div class="alert alert--info" role="status"><?= $escape($t('dispatch_companies.already_inactive')) ?></div><div class="form-actions"><a class="button button--secondary" href="/dispatch-companies/<?= $id ?>"><?= $escape($t('actions.return_to_company')) ?></a></div>
     <?php else: ?>
-        <form class="card form-card confirmation-form" method="post" action="/dispatch-companies/<?= $id ?>/deactivate"><div class="form-actions"><a class="button button--secondary" href="/dispatch-companies/<?= $id ?>"><?= $escape($t('actions.cancel')) ?></a><button class="button button--danger" type="submit"><?= $escape($t('actions.confirm_deactivation')) ?></button></div></form>
+        <form class="card form-card confirmation-form" method="post" action="/dispatch-companies/<?= $id ?>/deactivate"><?php include __DIR__ . '/../partials/csrf-field.php'; ?><div class="form-actions"><a class="button button--secondary" href="/dispatch-companies/<?= $id ?>"><?= $escape($t('actions.cancel')) ?></a><button class="button button--danger" type="submit"><?= $escape($t('actions.confirm_deactivation')) ?></button></div></form>
     <?php endif; ?>
 </section>

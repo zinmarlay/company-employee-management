@@ -16,13 +16,13 @@ final class Router
      * @param array<int, string> $methods
      * @param callable $handler
      */
-    public function add(array $methods, string $pattern, mixed $handler): void
+    public function add(array $methods, string $pattern, mixed $handler, string $access = 'public'): void
     {
         if (!is_callable($handler)) {
             throw new InvalidArgumentException('A route handler must be callable.');
         }
 
-        $route = new Route($methods, $pattern, $handler);
+        $route = new Route($methods, $pattern, $handler, $access);
 
         foreach ($route->methods() as $method) {
             foreach ($this->routes as $existingRoute) {
@@ -38,15 +38,15 @@ final class Router
     }
 
     /** @param callable $handler */
-    public function get(string $pattern, mixed $handler): void
+    public function get(string $pattern, mixed $handler, string $access = 'public'): void
     {
-        $this->add(['GET'], $pattern, $handler);
+        $this->add(['GET'], $pattern, $handler, $access);
     }
 
     /** @param callable $handler */
-    public function post(string $pattern, mixed $handler): void
+    public function post(string $pattern, mixed $handler, string $access = 'public'): void
     {
-        $this->add(['POST'], $pattern, $handler);
+        $this->add(['POST'], $pattern, $handler, $access);
     }
 
     /**

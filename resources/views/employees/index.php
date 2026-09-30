@@ -210,7 +210,7 @@ if (!is_string($departmentMetadataJson)) {
                             <td data-label="<?= $escape($t('table.actions')) ?>">
                                 <div class="table-actions">
                                     <a class="button button--text button--small" href="/employees/<?= $id ?>"><?= $escape($t('actions.view')) ?></a>
-                                    <?php if ($employee['status'] === 'active'): ?>
+                                    <?php if ($employee['status'] === 'active' && ($data['isAdmin'] ?? false)): ?>
                                         <a class="button button--text button--small" href="/employees/<?= $id ?>/edit"><?= $escape($t('actions.edit')) ?></a>
                                         <a class="button button--text button--small button--danger-text" href="/employees/<?= $id ?>/deactivate"><?= $escape($t('actions.deactivate')) ?></a>
                                     <?php endif; ?>

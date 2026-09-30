@@ -34,6 +34,7 @@ $name = ($employee['last_name'] ?? '') . ' ' . ($employee['first_name'] ?? '');
         </div>
     <?php else: ?>
         <form class="card form-card confirmation-form" method="post" action="/employees/<?= $id ?>/deactivate">
+            <?php include __DIR__ . '/../partials/csrf-field.php'; ?>
             <div class="form-actions">
                 <a class="button button--secondary" href="/employees/<?= $id ?>"><?= $escape($t('actions.cancel')) ?></a>
                 <button class="button button--danger" type="submit"><?= $escape($t('actions.confirm_deactivation')) ?></button>
