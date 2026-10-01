@@ -1,4 +1,4 @@
-# Phase 11 deployment checklist
+# Production deployment checklist
 
 Use this checklist before enabling the application in production.
 

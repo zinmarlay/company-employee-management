@@ -1,162 +1,243 @@
 # Company Employee Management System
 
-Internal, server-side rendered employee management system for a company with branches in multiple cities. The project is also an advanced Pure PHP learning project focused on professional object-oriented design, explicit dependencies, and clear application boundaries.
+English | [日本語](README.ja.md)
 
-## Phase 01 status
+## Overview
 
-Phase 01 establishes the project bootstrap, Composer metadata, PSR-4 autoloading, central configuration boundary, and public web root. It intentionally does not implement application features.
+Company Employee Management System is a server-rendered internal application for managing employees, organization data, dispatch contracts, employee portfolios, and system users. It is a deliberately small Pure PHP application: the request flow, security boundaries, validation, and persistence rules remain explicit and easy to inspect.
 
-## Phase 02 status
+The project is suitable for local development, technical discussion, and controlled production deployment. It is not a public registration service, API platform, or SPA.
 
-Phase 02 establishes the Pure PHP HTTP and server-rendered presentation foundation. The request flow now has explicit Request, Router, Middleware Pipeline, Controller, ViewRenderer, Response, ResponseEmitter, and HTTP error boundaries.
+## Project purpose
 
-The only application route is the setup route at `GET /`. Business routes and features remain deferred.
+The application provides one place to maintain employee and organizational records while preserving history through status and archive transitions. It also demonstrates framework-free object-oriented design with constructor injection, DTOs, application services, repository interfaces, and PDO persistence.
 
-## Requirements
+## Key features
 
-- PHP >= 8.3
-- Composer
-- Git
-- A MySQL-capable local development environment for later phases
+- Employee creation, editing, deactivation, detail views, and historical records.
+- Employee search by keyword, branch, department, employment type, and status, with allowlisted sorting and pagination.
+- Company, branch, and department management with lifecycle/status handling.
+- Dispatch-company management and non-overlapping dispatch-contract history.
+- Contract expiration classification: normal, expiring within 30 days, expiring within 7 days, and expired.
+- Employee skills, projects, and certifications with archive workflows.
+- ADMIN and read-only USER accounts, authentication, reactivation, and lifecycle protection.
+- English/Japanese presentation localization.
 
-The current local development environment uses PHP 8.5.x. Verify the active PHP runtime with:
+## Technology stack
 
-```sh
-php -v
+- PHP 8.3 or later
+- MySQL or MariaDB through PDO and `pdo_mysql`
+- Composer and PSR-4 autoloading
+- Server-side rendered PHP views with HTML5/CSS and minimal same-origin JavaScript
+- PHPUnit
+- `mbstring` (required)
+
+The application has no full-stack framework, ORM, React/Vue SPA, queue, Redis, or upload subsystem. `fileinfo` is not currently required because there is no file-upload feature.
+
+## Architecture
+
+The application uses explicit layers and constructor injection:
+
+```text
+Browser
+  -> public/index.php              Front controller
+  -> ApplicationBootstrap           Composition root / dependency graph
+  -> Request
+  -> HttpKernel
+  -> MiddlewarePipeline             Session, locale, authentication, authorization, CSRF
+  -> Router
+  -> Controller
+  -> Application Service
+  -> Repository
+  -> PDO / MySQL or MariaDB
 ```
 
-The application requires PHP >= 8.3, PDO, `pdo_mysql`, and `mbstring`. Phase 11 has no employee-photo upload feature, so `fileinfo` is not currently required.
+The response path is:
+
+```text
+Controller -> ViewRenderer -> Response -> ResponseEmitter -> Browser
+```
+
+- `public/index.php` loads the environment, boots the application, creates the request, and emits a safe bootstrap-failure response.
+- `ApplicationBootstrap` constructs configuration, repositories, services, controllers, middleware, and the kernel.
+- `Request` and `Response` are explicit HTTP boundaries. Each request receives a non-secret correlation ID.
+- `Router` maps method/path combinations and records route access metadata.
+- Middleware establishes the session, locale, authenticated user, authorization boundary, and POST CSRF requirement.
+- Controllers translate HTTP input into service calls and choose views or redirects.
+- Application services orchestrate validation and business workflows; DTOs carry validated values.
+- Repositories isolate PDO queries and transaction behavior.
+- `ViewRenderer` composes escaped server-rendered pages; `ResponseEmitter` writes status and headers, including repeated `Set-Cookie` values.
+
+## Directory structure
+
+```text
+config/                 Application defaults
+database/migrations/    Versioned MySQL/MariaDB schema migrations
+docs/                   Deployment and development operations notes
+public/                 Web document root and public assets
+resources/lang/         English and Japanese translations
+resources/views/        Server-rendered PHP templates
+routes/                 Route registration and access metadata
+src/Bootstrap/           Configuration and composition root
+src/Domain/              Repository contracts and domain exceptions
+src/Application/         DTOs, validators, services, and workflows
+src/Infrastructure/      PDO repository implementations
+src/Http/                HTTP boundaries, routing, middleware, views, controllers
+src/Security/            Sessions, authentication context, authentication, CSRF
+src/Logging/             Structured error_log logger and safe context handling
+tests/                   Unit, feature/HTTP, and gated DB integration tests
+bin/                     Migration, seed, and system-user CLI commands
+```
+
+## Database and domain overview
+
+```text
+Company 1---* Branch 1---* Department
+                         |
+                         *---* Employee
+
+Employee *---* Skill       (employee_skills)
+Employee 1---* Project     (employee_projects)
+Employee 1---* Certification (employee_certifications)
+Employee *---* Dispatch Contract *---1 Dispatch Company
+System User
+Employee Code Sequence
+```
+
+The schema uses foreign keys, unique constraints, status checks, date checks, and UTF-8 `utf8mb4` configuration. Employee, branch, department, dispatch-company, portfolio, and system-user records are retained through status or archive transitions rather than casually deleted. Employee codes and important organization identities remain stable; dispatch contracts preserve history and cannot overlap for the same employee.
+
+## Authentication and authorization
+
+The login flow normalizes the email for lookup, verifies a password hash, uses a dummy hash for missing/inactive accounts, regenerates the session ID after successful authentication, rotates the CSRF token, and records the successful login. Inactive accounts cannot authenticate, and an existing session is rechecked against the database on each request.
+
+Routes carry access metadata:
+
+- `public`: login pages and login submission.
+- `authenticated`: logout.
+- `authenticated_read`: signed-in read-only access.
+- `admin`: ADMIN-only create, update, deactivate, archive, activate, and system-user operations.
+
+Authorization is enforced in middleware and supported by service/repository rules. A USER cannot reach ADMIN routes by guessing URLs.
+
+## Security measures implemented by the application
+
+- PDO prepared statements and allowlisted SQL sort/direction expressions.
+- Context-aware HTML escaping and JSON hex escaping for employee-search metadata.
+- CSRF validation on every registered POST route before controller writes.
+- Password hashing, password verification, dummy-hash timing behavior, and session ID regeneration.
+- Strict, cookie-only, `HttpOnly`, `SameSite=Lax` sessions; production cookies require direct trusted HTTPS.
+- Production configuration fails closed for debug mode, non-HTTPS `APP_URL`, missing explicit database configuration, and example database credentials.
+- Direct trusted HTTPS is supported in production. `X-Forwarded-Proto`, `Forwarded`, and similar client headers are not trusted; reverse-proxy trust is deferred.
+- HTML responses include CSP with `script-src 'self'` and `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and a referrer policy.
+- Private HTML responses use `Cache-Control: no-store, private` and `Pragma: no-cache` where applicable.
+- Unexpected errors and bootstrap failures return generic browser responses and write safe metadata to PHP's configured `error_log` pipeline.
+- Logging is allowlist-first and includes a non-secret request/correlation ID without logging passwords, identifiers, bodies, cookies, sessions, CSRF tokens, authorization values, or secrets.
+- Search keywords and department descriptions have explicit server-side bounds.
+- Dispatch writes recheck overlap inside one repository transaction while holding a deterministic employee-row lock.
+
+These are implemented controls, not a claim of absolute security. TLS, least-privilege database access, PHP runtime settings, monitoring, backups, and operational procedures remain deployment responsibilities.
+
+## Feature areas
+
+### Employees and search
+
+Employees can be created, edited, viewed, and deactivated. Deactivation preserves historical references. The directory supports keyword search, branch and department filters, employment type and status filters, allowlisted sort fields/directions, and bounded pagination. Department filtering has a same-origin enhancement at [`public/assets/js/employee-search.js`](public/assets/js/employee-search.js); the server remains authoritative.
+
+### Branches and departments
+
+Branches belong to companies and departments belong to branches. Inactive organization records remain readable for historical employee and contract references. Parent relationships and immutable identity fields are validated by application and database constraints.
+
+### Dispatch companies and contracts
+
+Dispatch companies have active/inactive lifecycle state. Contracts link dispatched employees to dispatch companies with validated dates. Renewal creates history, expiration is classified against UTC reference dates, and the repository transaction prevents overlapping contracts for one employee.
+
+### Employee portfolio
+
+Skills use a catalog and employee-specific proficiency/experience records. Projects support optional end dates and archive status. Certifications preserve issuing organization and obtained-date identity, optional expiration, and archive status. Portfolio child records are ownership-checked against their employee parent.
+
+### System users
+
+System users have `ADMIN` or `USER` roles and active/inactive status. ADMIN-only screens manage accounts, while the service protects the acting administrator and prevents removal of the last active ADMIN. Existing password hashes are preserved when no replacement password is submitted during an edit.
+
+### Localization
+
+The application supports English and Japanese translation resources. Locale selection is available through the UI and is persisted in an `app_locale` cookie. Stored identifiers remain stable while organization display labels are localized.
 
 ## Installation
 
-From the project root:
+Requirements: PHP 8.3+, Composer, MySQL/MariaDB, PDO with `pdo_mysql`, and `mbstring`.
 
 ```sh
-composer validate
+git clone <repository-url>
+cd company-employee-management
 composer install
-composer dump-autoload
+cp .env.example .env
+```
+
+Edit `.env` with local database values. Do not commit `.env` or put real credentials in documentation.
+
+## Environment configuration
+
+The application reads `config/app.php` defaults and optional `.env` values through `vlucas/phpdotenv`. Existing process environment variables take precedence.
+
+### Local development
+
+Use `APP_ENV=local`, `APP_DEBUG=true`, a local HTTP `APP_URL`, and local `DB_*` values. Development seeding is allowed only for `local` and refuses test-like database names.
+
+### Test environment
+
+Use `APP_ENV=test` with a separate database described by `DB_TEST_*`. Integration tests never guess a database and skip unless the explicit test environment is configured.
+
+### Production
+
+Set `APP_ENV=production`, `APP_DEBUG=false`, and an `https://` `APP_URL`. Production database host, port, database, username, password, and charset must be explicitly supplied; local defaults and example `change-me` credentials are rejected. Production supports direct trusted HTTPS only and does not trust forwarded protocol headers. Configure PHP with `display_errors=Off`, `display_startup_errors=Off`, `log_errors=On`, an actionable `error_reporting` level, and a host-managed `error_log` destination.
+
+See [`docs/deployment-checklist.md`](docs/deployment-checklist.md). The committed template is [`.env.example`](.env.example).
+
+## Database setup and migrations
+
+Create a dedicated database and least-privilege credentials, then configure `.env`:
+
+```sh
+php bin/migrate status
+php bin/migrate migrate
+```
+
+Migrations run from the CLI, not web requests. The migration set covers companies, branches, departments, employees, dispatch companies/contracts, employee-code allocation, portfolios, and system users. Review migration status and backup/recovery procedures before production changes.
+
+## Development seeding
+
+After migrations in a local database:
+
+```sh
+php bin/seed
+```
+
+The seeder is transactional and idempotent. It creates or reuses deterministic sample organization, employee, dispatch-company, and dispatch-contract data, and never targets `DB_TEST_*`. See [`docs/development-seeding.md`](docs/development-seeding.md).
+
+## Running locally
+
+```sh
+php -S localhost:8000 -t public
+```
+
+Open <http://localhost:8000/>. Create an administrator through the protected CLI command when needed:
+
+```sh
+php bin/system-user create-admin
+```
+
+The command prompts for the administrator name, email, and password; it has no default password.
+
+## Testing
+
+Normal suite:
+
+```sh
 composer test
 ```
 
-Composer installs the minimal project dependencies and generates the PSR-4 autoloader. The project namespace `App\\` maps to `src/`.
-
-PHPUnit is a development dependency used to verify the HTTP architecture. Tests focus on request/response behavior, routing, middleware, view escaping, error handling, and the complete setup request flow.
-
-## Configuration
-
-Application configuration is defined in `config/app.php` and may be
-overridden by the process environment. At the web and migration entry points,
-the project loads an optional `.env` file from the project root using
-`vlucas/phpdotenv`. Existing environment variables supplied by the shell or
-runtime take precedence over values in `.env`.
-
-Create the local file from the safe template and set local database values:
-
-```sh
-cp .env.example .env
-```
-
-For the local XAMPP/MySQL setup, `.env` should contain values equivalent to:
-
-```dotenv
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://localhost:8000
-APP_TIMEZONE=Asia/Tokyo
-
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=company_employee_management
-DB_USERNAME=root
-DB_PASSWORD=
-DB_CHARSET=utf8mb4
-```
-
-`.env` is ignored by Git. Do not add local credentials to the repository;
-`.env.example` is the committed template.
-
-For production, set `APP_ENV=production`, `APP_DEBUG=false`, and an `https://`
-`APP_URL`. Production uses direct trusted HTTPS only and does not trust forwarded
-protocol headers. Supply all database credentials explicitly; missing production
-database configuration fails fast without exposing credential values. PHP's
-configured `error_log` pipeline is the application log destination; rotation,
-retention, permissions, and monitoring are host/operator responsibilities. See
-[`docs/deployment-checklist.md`](docs/deployment-checklist.md) for the release
-checklist.
-
-## Local development server
-
-Run the PHP built-in development server from the project root:
-
-```sh
-php -S localhost:8000 -t public
-```
-
-The built-in server is for local development only. The `public/` directory is the document root so that only the intended web entry point is exposed; source code, configuration, documentation, and runtime data remain outside the web-facing directory.
-
-The Phase 01 temporary entry point can be opened at <http://localhost:8000/>. Stop the server with `Ctrl+C` after verification.
-
-Phase 02 verification should also confirm that an unknown path returns `404`, a known path with an unsupported method returns `405` with an `Allow` header, and unexpected request-processing failures return a safe `500` response.
-
-## Phase 01 intentionally does not implement
-
-The following are deferred to later branches:
-
-- Router, route definitions, controllers, middleware, and views
-- Material Design UI pages
-- MySQL or PDO database connections, repositories, migrations, and seeders
-- Authentication, authorization, sessions, and CSRF protection
-- Validation framework, business services, domain features, and DTOs
-- Branch, department, employee, dispatch-company, contract, portfolio, skill, project, certification, user, search, pagination, and dashboard features
-
-Future phases must preserve the front-controller and configuration boundaries established here and must introduce directories only when they have a real responsibility.
-
-Phase 02 does not implement MySQL, PDO, repositories, authentication, authorization, sessions, CSRF, business services, employee features, dashboard data, file uploads, a complete Material Design interface, API endpoints, or SPA architecture.
-
-## Phase 03 status
-
-Phase 03 establishes the database foundation without coupling the existing HTTP application to MySQL. Database configuration is resolved through the bootstrap configuration boundary, `ConnectionFactory` creates PDO connections with explicit safe defaults, and versioned migrations are managed through the CLI boundary.
-
-Phase 03 does not create business tables or implement repositories, services, authentication, authorization, or employee features. The web entry point remains usable without database credentials or a running MySQL server.
-
-### Database configuration
-
-The minimum runtime requirement is PHP >= 8.3. Phase 03 also requires the PDO extension and the `pdo_mysql` driver when a database connection is used. Verify the active runtime and available driver with:
-
-```sh
-php -v
-php -m | grep -E 'PDO|pdo_mysql'
-```
-
-Database values are read at the configuration boundary. `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` must be explicitly configured before a connection is attempted; `DB_PASSWORD` may intentionally be an empty string. `DB_HOST`, `DB_PORT`, and `DB_CHARSET` default to `127.0.0.1`, `3306`, and `utf8mb4` respectively. Do not commit real credentials.
-
-### Migration commands
-
-Run migration commands from the project root. They use the configured environment and do not run automatically during web requests:
-
-```sh
-php bin/migrate status
-php bin/migrate migrate
-php bin/migrate rollback
-```
-
-The normal local setup flow is:
-
-```sh
-cp .env.example .env
-# edit .env with local database credentials
-php bin/migrate status
-php bin/migrate migrate
-php -S localhost:8000 -t public
-```
-
-Migration classes are deterministic `VersionYYYYMMDDHHMMSSName` classes implementing `MigrationInterface`, and applied migrations are tracked in `schema_migrations`. The current domain migrations create companies, branches, departments, and employees in dependency order. They are applied only when `php bin/migrate migrate` is run; the HTTP application does not run them automatically.
-
-### Database tests
-
-Unit tests do not require MySQL. Integration tests run only when `APP_ENV=test`
-and all `DB_TEST_*` variables are explicitly supplied. Use a separate test
-database, for example:
+Database-backed example using a separate test database:
 
 ```sh
 APP_ENV=test \
@@ -169,26 +250,19 @@ DB_TEST_CHARSET=utf8mb4 \
 composer test
 ```
 
-The test database name must end in `_test` and must be different from the
-normal application database. Test configuration is passed explicitly and
-never falls back to `DB_DATABASE`. If the required values are not present,
-integration tests are skipped or fail safely rather than guessing a database
-target.
+Without all `DB_TEST_*` values and an available test database, integration tests skip safely. Never point them at development or production.
 
-The Phase 04 integration coverage checks the company/branch/department/employee schema, scoped uniqueness, required relationships, optional department assignment, cross-branch assignment rejection, deletion restrictions, check constraints, migration idempotency, and reverse-order rollback. The configured MySQL or MariaDB version must enforce `CHECK` constraints; use the integration suite to verify status and employee-type values are rejected by the actual test engine.
+## Production considerations
 
-The Phase 04 schema decisions are documented in [docs/specs/04-domain-schema.md](docs/specs/04-domain-schema.md). They do not add application CRUD, repositories, authentication, or UI behavior.
+Use `/public` as the web-server document root, keep `.env` and source files outside the web root, install production Composer dependencies, apply migrations deliberately, configure direct HTTPS and secure sessions, and verify security headers, login/logout, CSRF rejection, authorization boundaries, localization, database access, and safe error responses after deployment. PHP log rotation, retention, permissions, monitoring, backups, and restore procedures belong to the host/operator.
 
-## Phase 05a status
+## Design principles
 
-Phase 05a adds the shared Material Design-inspired administration shell for
-the existing server-rendered application. The layout, responsive CSS, shared
-view partials, employee list, employee forms, employee detail, deactivation,
-and root welcome page use the same presentation system without changing
-employee business rules or database behavior.
-
-The sidebar links only to implemented routes. Future organization and
-dispatch areas are shown as disabled placeholders until their respective
-phases are implemented. See
-[docs/specs/05a-material-ui-foundation.md](docs/specs/05a-material-ui-foundation.md)
-for the UI architecture and accessibility decisions.
+- Keep infrastructure details behind explicit interfaces and repositories.
+- Prefer constructor injection and small DTOs over hidden global dependencies.
+- Keep validation and authorization at the server boundary.
+- Preserve historical data through lifecycle/archive states.
+- Let database constraints reinforce application invariants.
+- Make security decisions explicit and testable.
+- Favor readable, framework-free code over accidental abstraction.
+- Document operational assumptions without claiming more than the code implements.
